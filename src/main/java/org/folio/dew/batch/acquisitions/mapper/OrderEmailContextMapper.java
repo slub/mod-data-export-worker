@@ -21,7 +21,6 @@ import org.folio.dew.domain.dto.templateengine.OrganizationAddressContext;
 import org.folio.dew.domain.dto.templateengine.OrganizationContext;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,17 +29,18 @@ import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
-public class OrderEmailContextMapper {
+public class OrderEmailContextMapper extends EmailContextMapper {
 
   private final IdentifierTypeService identifierTypeService;
   private final ConfigurationService configurationService;
   private final UserService userService;
   private final OrganizationsService organizationsService;
 
-  public OrderEmailContext buildContext(List<CompositePurchaseOrder> orders) {
+  public OrderEmailContext buildContext(List<CompositePurchaseOrder> orders, String outputFormat) {
+    boolean htmlOutput = isHtmlOutput(outputFormat);
     var orderWrappers = orders.stream()
       .map(order -> new OrderWrapper(
-        mapOrder(order),
+        mapOrder(order, htmlOutput),
         order.getPoLines().stream()
           .map(line -> new OrderLineWrapper(mapOrderLine(line)))
           .toList()))
@@ -118,15 +118,15 @@ public class OrderEmailContextMapper {
       .or(() -> Optional.of(items.getFirst()));
   }
 
-  private OrderContext mapOrder(CompositePurchaseOrder order) {
+  private OrderContext mapOrder(CompositePurchaseOrder order, boolean htmlOutput) {
     return OrderContext.builder()
       .poNumber(StringUtils.defaultString(order.getPoNumber()))
       .orderDate(StringUtils.defaultString(ExportUtils.getFormattedDate(order.getDateOrdered())))
       .orderType(Optional.ofNullable(order.getOrderType()).map(CompositePurchaseOrder.OrderTypeEnum::getValue).orElse(""))
       .createdBy(userService.getUserName(Optional.ofNullable(order.getMetadata()).map(Metadata::getCreatedByUserId).map(Object::toString).orElse("")))
       .totalEstimatedPrice(formatDecimal(order.getTotalEstimatedPrice()))
-      .shipTo(configurationService.getAddressConfig(order.getShipTo()))
-      .billTo(configurationService.getAddressConfig(order.getBillTo()))
+      .shipTo(toLineBreaks(configurationService.getAddressConfig(order.getShipTo()), htmlOutput))
+      .billTo(toLineBreaks(configurationService.getAddressConfig(order.getBillTo()), htmlOutput))
       .notes(joinNotes(order.getNotes()))
       .build();
   }
@@ -156,10 +156,6 @@ public class OrderEmailContextMapper {
       .vendorRefNumber(mapVendorRefNumber(line.getVendorDetail()))
       .instructions(Optional.ofNullable(line.getVendorDetail()).map(VendorDetail::getInstructions).orElse(""))
       .build();
-  }
-
-  private String formatDecimal(BigDecimal value) {
-    return value != null ? value.toPlainString() : "";
   }
 
   private String joinNotes(List<String> notes) {

@@ -68,7 +68,7 @@ class OrderEmailContextMapperTest {
     when(userService.getUserName("7a626480-284e-5b55-9cf2-db32f93956cf")).thenReturn("John Doe");
     var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
 
-    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
     assertThat(ctx.getOrders()).hasSize(1);
     var wrapper = ctx.getOrders().get(0);
@@ -83,10 +83,38 @@ class OrderEmailContextMapperTest {
   }
 
   @Test
+  void buildContext_shipToBillToNewlines_renderedAsBrTags() throws IOException {
+    when(configurationService.getAddressConfig(SHIP_TO_UUID))
+      .thenReturn("SLUB Dresden\nZellescher Weg 18\n01069 Dresden");
+    when(configurationService.getAddressConfig(BILL_TO_UUID))
+      .thenReturn("Accounts Payable\nPO Box 42\nSpringfield IL");
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
+
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
+
+    assertThat(ctx.getOrders().get(0).order().getShipTo())
+      .isEqualTo("SLUB Dresden<br>Zellescher Weg 18<br>01069 Dresden");
+    assertThat(ctx.getOrders().get(0).order().getBillTo())
+      .isEqualTo("Accounts Payable<br>PO Box 42<br>Springfield IL");
+  }
+
+  @Test
+  void buildContext_shipToBillToNewlines_plainTextKeepsNewlines() throws IOException {
+    when(configurationService.getAddressConfig(SHIP_TO_UUID))
+      .thenReturn("SLUB Dresden\nZellescher Weg 18\n01069 Dresden");
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
+
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/plain");
+
+    assertThat(ctx.getOrders().get(0).order().getShipTo())
+      .isEqualTo("SLUB Dresden\nZellescher Weg 18\n01069 Dresden");
+  }
+
+  @Test
   void buildContext_shipToBillToNotResolved_returnsEmptyString() throws IOException {
     var order = loadOrder("edifact/acquisitions/minimalistic_composite_purchase_order.json");
 
-    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
     assertThat(ctx.getOrders().get(0).order().getShipTo()).isEmpty();
     assertThat(ctx.getOrders().get(0).order().getBillTo()).isEmpty();
@@ -96,7 +124,7 @@ class OrderEmailContextMapperTest {
   void buildContext_mapsOrderLineFields() throws IOException {
     var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
 
-    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
     assertThat(ctx.getOrders()).hasSize(1);
     var lines = ctx.getOrders().get(0).orderLines();
@@ -129,14 +157,14 @@ class OrderEmailContextMapperTest {
     var order1 = loadOrder("edifact/acquisitions/composite_purchase_order.json");
     var order2 = loadOrder("edifact/acquisitions/minimalistic_composite_purchase_order.json");
 
-    OrderEmailContext ctx = mapper.buildContext(List.of(order1, order2));
+    OrderEmailContext ctx = mapper.buildContext(List.of(order1, order2), "text/html");
 
     assertThat(ctx.getOrders()).hasSize(2);
   }
 
   @Test
   void buildContext_emptyOrders_returnsEmptyList() {
-    OrderEmailContext ctx = mapper.buildContext(List.of());
+    OrderEmailContext ctx = mapper.buildContext(List.of(), "text/html");
 
     assertThat(ctx.getOrders()).isEmpty();
     assertThat(ctx.getOrganization().getName()).isEmpty();
@@ -159,7 +187,7 @@ class OrderEmailContextMapperTest {
     when(organizationsService.getOrganizationById(VENDOR_UUID)).thenReturn(org);
     var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
 
-    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
     var organization = ctx.getOrganization();
     assertThat(organization.getName()).isEqualTo("Acme Books");
@@ -179,7 +207,7 @@ class OrderEmailContextMapperTest {
     when(organizationsService.getOrganizationById(VENDOR_UUID)).thenReturn(org);
     var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
 
-    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
     assertThat(ctx.getOrganization().getContactEmail()).isEqualTo("first@acme.test");
     assertThat(ctx.getOrganization().getAddress().getAddressLine1()).isEqualTo("First St");
@@ -192,7 +220,7 @@ class OrderEmailContextMapperTest {
     when(organizationsService.getOrganizationById(VENDOR_UUID)).thenReturn(org);
     var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
 
-    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
     assertThat(ctx.getOrganization().getName()).isEqualTo("Acme Books");
     assertThat(ctx.getOrganization().getContactEmail()).isEmpty();
@@ -224,7 +252,7 @@ class OrderEmailContextMapperTest {
     var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
     order.getPoLines().get(0).setCost(null);
 
-    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
     OrderLineContext line = ctx.getOrders().get(0).orderLines().get(0).orderLine();
     assertThat(line.getListUnitPrice()).isEmpty();
@@ -237,7 +265,7 @@ class OrderEmailContextMapperTest {
     var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
     order.getPoLines().get(0).setVendorDetail(null);
 
-    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
     OrderLineContext line = ctx.getOrders().get(0).orderLines().get(0).orderLine();
     assertThat(line.getVendorRefNumber()).isEmpty();
