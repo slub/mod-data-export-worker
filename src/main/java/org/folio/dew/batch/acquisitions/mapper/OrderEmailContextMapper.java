@@ -67,8 +67,8 @@ public class OrderEmailContextMapper extends EmailContextMapper {
     return OrganizationContext.builder()
       .name(StringUtils.defaultString(org.getName()))
       .code(StringUtils.defaultString(org.getCode()))
-      .contactEmail(pickPrimaryEmail(org.getEmails()))
-      .address(pickPrimaryAddress(org.getAddresses()))
+      .primaryEmail(pickPrimaryEmail(org.getEmails()))
+      .primaryAddress(pickPrimaryAddress(org.getAddresses()))
       .build();
   }
 
@@ -76,8 +76,8 @@ public class OrderEmailContextMapper extends EmailContextMapper {
     return OrganizationContext.builder()
       .name("")
       .code("")
-      .contactEmail("")
-      .address(emptyOrganizationAddressContext())
+      .primaryEmail("")
+      .primaryAddress(emptyOrganizationAddressContext())
       .build();
   }
 
@@ -114,8 +114,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
     }
     return items.stream()
       .filter(item -> Boolean.TRUE.equals(isPrimary.apply(item)))
-      .findFirst()
-      .or(() -> Optional.of(items.getFirst()));
+      .findFirst();
   }
 
   private OrderContext mapOrder(CompositePurchaseOrder order, boolean htmlOutput) {
