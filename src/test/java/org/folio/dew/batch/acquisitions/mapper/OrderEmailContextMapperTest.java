@@ -169,8 +169,8 @@ class OrderEmailContextMapperTest {
     assertThat(ctx.getOrders()).isEmpty();
     assertThat(ctx.getOrganization().getName()).isEmpty();
     assertThat(ctx.getOrganization().getCode()).isEmpty();
-    assertThat(ctx.getOrganization().getContactEmail()).isEmpty();
-    assertThat(ctx.getOrganization().getAddress().getAddressLine1()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryEmail()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getAddressLine1()).isEmpty();
   }
 
   @Test
@@ -192,25 +192,28 @@ class OrderEmailContextMapperTest {
     var organization = ctx.getOrganization();
     assertThat(organization.getName()).isEqualTo("Acme Books");
     assertThat(organization.getCode()).isEqualTo("ACME");
-    assertThat(organization.getContactEmail()).isEqualTo("primary@acme.test");
-    assertThat(organization.getAddress().getAddressLine1()).isEqualTo("100 Main St");
-    assertThat(organization.getAddress().getCity()).isEqualTo("Springfield");
-    assertThat(organization.getAddress().getZipCode()).isEqualTo("12345");
-    assertThat(organization.getAddress().getCountry()).isEqualTo("USA");
+    assertThat(organization.getPrimaryEmail()).isEqualTo("primary@acme.test");
+    assertThat(organization.getPrimaryAddress().getAddressLine1()).isEqualTo("100 Main St");
+    assertThat(organization.getPrimaryAddress().getCity()).isEqualTo("Springfield");
+    assertThat(organization.getPrimaryAddress().getZipCode()).isEqualTo("12345");
+    assertThat(organization.getPrimaryAddress().getCountry()).isEqualTo("USA");
   }
 
   @Test
-  void buildContext_picksFirstWhenNoPrimary() throws IOException {
+  void buildContext_noPrimaryFlagged_returnsEmpty() throws IOException {
     var org = new Organization();
-    org.setEmails(List.of(buildEmail("first@acme.test", null), buildEmail("second@acme.test", null)));
+    org.setEmails(List.of(buildEmail("first@acme.test", null), buildEmail("second@acme.test", false)));
     org.setAddresses(List.of(buildAddress("First St", "FirstCity", "11111", "USA", null)));
     when(organizationsService.getOrganizationById(VENDOR_UUID)).thenReturn(org);
     var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
 
     OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
-    assertThat(ctx.getOrganization().getContactEmail()).isEqualTo("first@acme.test");
-    assertThat(ctx.getOrganization().getAddress().getAddressLine1()).isEqualTo("First St");
+    assertThat(ctx.getOrganization().getPrimaryEmail()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getAddressLine1()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getCity()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getZipCode()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getCountry()).isEmpty();
   }
 
   @Test
@@ -223,11 +226,11 @@ class OrderEmailContextMapperTest {
     OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
     assertThat(ctx.getOrganization().getName()).isEqualTo("Acme Books");
-    assertThat(ctx.getOrganization().getContactEmail()).isEmpty();
-    assertThat(ctx.getOrganization().getAddress().getAddressLine1()).isEmpty();
-    assertThat(ctx.getOrganization().getAddress().getCity()).isEmpty();
-    assertThat(ctx.getOrganization().getAddress().getZipCode()).isEmpty();
-    assertThat(ctx.getOrganization().getAddress().getCountry()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryEmail()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getAddressLine1()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getCity()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getZipCode()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getCountry()).isEmpty();
   }
 
   private OrganizationEmail buildEmail(String value, Boolean isPrimary) {

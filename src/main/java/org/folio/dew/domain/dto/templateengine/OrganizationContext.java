@@ -9,6 +9,6 @@ public class OrganizationContext {
 
   private String name;
   private String code;
-  private String contactEmail;
-  private OrganizationAddressContext address;
+  private String primaryEmail;
+  private OrganizationAddressContext primaryAddress;
 }
