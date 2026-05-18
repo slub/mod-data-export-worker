@@ -9,5 +9,4 @@ public class Organization {
   private String code;
   private String name;
   private List<OrganizationAddress> addresses;
-  private List<OrganizationEmail> emails;
 }
