@@ -8,7 +8,5 @@ import lombok.Data;
 public class OrganizationContext {
 
   private String name;
-  private String code;
-  private String primaryEmail;
   private OrganizationAddressContext primaryAddress;
 }

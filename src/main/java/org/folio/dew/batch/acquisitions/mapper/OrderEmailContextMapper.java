@@ -11,7 +11,6 @@ import org.folio.dew.batch.acquisitions.utils.ExportUtils;
 import org.folio.dew.domain.dto.*;
 import org.folio.dew.domain.dto.acquisitions.edifact.Organization;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
-import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationEmail;
 import org.folio.dew.domain.dto.templateengine.OrderContext;
 import org.folio.dew.domain.dto.templateengine.OrderEmailContext;
 import org.folio.dew.domain.dto.templateengine.OrderLineContext;
@@ -66,8 +65,6 @@ public class OrderEmailContextMapper extends EmailContextMapper {
     }
     return OrganizationContext.builder()
       .name(StringUtils.defaultString(org.getName()))
-      .code(StringUtils.defaultString(org.getCode()))
-      .primaryEmail(pickPrimaryEmail(org.getEmails()))
       .primaryAddress(pickPrimaryAddress(org.getAddresses()))
       .build();
   }
@@ -75,8 +72,6 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   private OrganizationContext emptyOrganizationContext() {
     return OrganizationContext.builder()
       .name("")
-      .code("")
-      .primaryEmail("")
       .primaryAddress(emptyOrganizationAddressContext())
       .build();
   }
@@ -88,13 +83,6 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .zipCode("")
       .country("")
       .build();
-  }
-
-  private String pickPrimaryEmail(List<OrganizationEmail> emails) {
-    return pickPrimary(emails, OrganizationEmail::getIsPrimary)
-      .map(OrganizationEmail::getValue)
-      .map(StringUtils::defaultString)
-      .orElse("");
   }
 
   private OrganizationAddressContext pickPrimaryAddress(List<OrganizationAddress> addresses) {
