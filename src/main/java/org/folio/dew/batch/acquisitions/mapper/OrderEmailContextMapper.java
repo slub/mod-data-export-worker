@@ -116,7 +116,6 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .totalEstimatedPrice(formatDecimal(order.getTotalEstimatedPrice()))
       .shipTo(toLineBreaks(configurationService.getAddressConfig(order.getShipTo()), htmlOutput))
       .billTo(toLineBreaks(configurationService.getAddressConfig(order.getBillTo()), htmlOutput))
-      .notes(joinNotes(order.getNotes()))
       .build();
   }
 
@@ -145,10 +144,6 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .vendorRefNumber(mapVendorRefNumber(line.getVendorDetail()))
       .instructions(Optional.ofNullable(line.getVendorDetail()).map(VendorDetail::getInstructions).orElse(""))
       .build();
-  }
-
-  private String joinNotes(List<String> notes) {
-    return CollectionUtils.isEmpty(notes) ? "" : String.join("; ", notes);
   }
 
   private String mapContributors(List<Contributor> contributors) {

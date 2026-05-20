@@ -14,5 +14,4 @@ public class OrderContext {
   private String totalEstimatedPrice;
   private String shipTo;
   private String billTo;
-  private String notes;
 }

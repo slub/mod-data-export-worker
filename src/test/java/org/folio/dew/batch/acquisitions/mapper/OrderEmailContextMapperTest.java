@@ -78,7 +78,6 @@ class OrderEmailContextMapperTest {
     assertThat(wrapper.order().getTotalEstimatedPrice()).isEqualTo("1.8");
     assertThat(wrapper.order().getShipTo()).isEqualTo(SHIP_TO_ADDRESS);
     assertThat(wrapper.order().getBillTo()).isEqualTo(BILL_TO_ADDRESS);
-    assertThat(wrapper.order().getNotes()).isEqualTo("First note; Second note");
   }
 
   @Test
