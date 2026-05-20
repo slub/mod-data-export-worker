@@ -167,6 +167,7 @@ class OrderEmailContextMapperTest {
 
     assertThat(ctx.getOrders()).isEmpty();
     assertThat(ctx.getOrganization().getName()).isEmpty();
+    assertThat(ctx.getOrganization().getCode()).isEmpty();
     assertThat(ctx.getOrganization().getPrimaryAddress().getAddressLine1()).isEmpty();
   }
 
@@ -185,6 +186,7 @@ class OrderEmailContextMapperTest {
 
     var organization = ctx.getOrganization();
     assertThat(organization.getName()).isEqualTo("Acme Books");
+    assertThat(organization.getCode()).isEqualTo("ACME");
     assertThat(organization.getPrimaryAddress().getAddressLine1()).isEqualTo("100 Main St");
     assertThat(organization.getPrimaryAddress().getCity()).isEqualTo("Springfield");
     assertThat(organization.getPrimaryAddress().getZipCode()).isEqualTo("12345");

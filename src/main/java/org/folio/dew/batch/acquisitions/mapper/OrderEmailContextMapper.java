@@ -65,6 +65,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
     }
     return OrganizationContext.builder()
       .name(StringUtils.defaultString(org.getName()))
+      .code(StringUtils.defaultString(org.getCode()))
       .primaryAddress(pickPrimaryAddress(org.getAddresses()))
       .build();
   }
@@ -72,6 +73,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   private OrganizationContext emptyOrganizationContext() {
     return OrganizationContext.builder()
       .name("")
+      .code("")
       .primaryAddress(emptyOrganizationAddressContext())
       .build();
   }
