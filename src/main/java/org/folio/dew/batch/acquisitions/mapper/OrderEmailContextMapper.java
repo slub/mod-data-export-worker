@@ -65,7 +65,6 @@ public class OrderEmailContextMapper extends EmailContextMapper {
     }
     return OrganizationContext.builder()
       .name(StringUtils.defaultString(org.getName()))
-      .code(StringUtils.defaultString(org.getCode()))
       .primaryAddress(pickPrimaryAddress(org.getAddresses()))
       .build();
   }
@@ -73,7 +72,6 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   private OrganizationContext emptyOrganizationContext() {
     return OrganizationContext.builder()
       .name("")
-      .code("")
       .primaryAddress(emptyOrganizationAddressContext())
       .build();
   }
@@ -111,9 +109,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
     return OrderContext.builder()
       .poNumber(StringUtils.defaultString(order.getPoNumber()))
       .orderDate(StringUtils.defaultString(ExportUtils.getFormattedDate(order.getDateOrdered())))
-      .orderType(Optional.ofNullable(order.getOrderType()).map(CompositePurchaseOrder.OrderTypeEnum::getValue).orElse(""))
       .createdBy(userService.getUserName(Optional.ofNullable(order.getMetadata()).map(Metadata::getCreatedByUserId).map(Object::toString).orElse("")))
-      .totalEstimatedPrice(formatDecimal(order.getTotalEstimatedPrice()))
       .shipTo(toLineBreaks(configurationService.getAddressConfig(order.getShipTo()), htmlOutput))
       .billTo(toLineBreaks(configurationService.getAddressConfig(order.getBillTo()), htmlOutput))
       .build();
@@ -121,39 +117,23 @@ public class OrderEmailContextMapper extends EmailContextMapper {
 
   private OrderLineContext mapOrderLine(PoLine line) {
     var cost = line.getCost();
-    var physQty = Optional.ofNullable(cost).map(Cost::getQuantityPhysical).orElse(0);
-    var elecQty = Optional.ofNullable(cost).map(Cost::getQuantityElectronic).orElse(0);
+    var quantityPhysical = Optional.ofNullable(cost).map(Cost::getQuantityPhysical).orElse(0);
+    var quantityElectronic = Optional.ofNullable(cost).map(Cost::getQuantityElectronic).orElse(0);
     return OrderLineContext.builder()
       .poLineNumber(StringUtils.defaultString(line.getPoLineNumber()))
       .title(StringUtils.defaultString(line.getTitleOrPackage()))
-      .contributors(mapContributors(line.getContributors()))
-      .publisher(StringUtils.defaultString(line.getPublisher()))
       .publicationDate(StringUtils.defaultString(line.getPublicationDate()))
       .edition(StringUtils.defaultString(line.getEdition()))
       .productIdentifier(mapProductIdentifiers(line.getDetails()))
       .productIdentifierType(mapProductIdentifierTypes(line.getDetails()))
-      .materialType(resolveMaterialType(line.getPhysical(), line.getEresource()))
       .listUnitPrice(formatDecimal(Optional.ofNullable(cost).map(Cost::getListUnitPrice).orElse(null)))
       .listUnitPriceElectronic(formatDecimal(Optional.ofNullable(cost).map(Cost::getListUnitPriceElectronic).orElse(null)))
-      .quantityPhysical(physQty)
-      .quantityElectronic(elecQty)
-      .quantity(physQty + elecQty)
+      .quantityPhysical(quantityPhysical)
+      .quantityElectronic(quantityElectronic)
+      .quantity(quantityPhysical + quantityElectronic)
       .estimatedPrice(formatDecimal(Optional.ofNullable(cost).map(Cost::getPoLineEstimatedPrice).orElse(null)))
       .currency(Optional.ofNullable(cost).map(Cost::getCurrency).orElse(""))
-      .fundCodes(mapFundCodes(line.getFundDistribution()))
-      .vendorRefNumber(mapVendorRefNumber(line.getVendorDetail()))
-      .instructions(Optional.ofNullable(line.getVendorDetail()).map(VendorDetail::getInstructions).orElse(""))
       .build();
-  }
-
-  private String mapContributors(List<Contributor> contributors) {
-    if (CollectionUtils.isEmpty(contributors)) {
-      return "";
-    }
-    return contributors.stream()
-      .map(Contributor::getContributor)
-      .filter(StringUtils::isNotBlank)
-      .collect(Collectors.joining("; "));
   }
 
   private String mapProductIdentifiers(Details details) {
@@ -176,34 +156,5 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .map(identifierTypeService::getIdentifierTypeName)
       .filter(StringUtils::isNotBlank)
       .collect(Collectors.joining("; "));
-  }
-
-  private String resolveMaterialType(Physical physical, Eresource eresource) {
-    if (physical != null && StringUtils.isNotBlank(physical.getMaterialType())) {
-      return physical.getMaterialType();
-    }
-    if (eresource != null && StringUtils.isNotBlank(eresource.getMaterialType())) {
-      return eresource.getMaterialType();
-    }
-    return "";
-  }
-
-  private String mapFundCodes(List<FundDistribution> fundDistributions) {
-    if (CollectionUtils.isEmpty(fundDistributions)) {
-      return "";
-    }
-    return fundDistributions.stream()
-      .map(FundDistribution::getCode)
-      .filter(StringUtils::isNotBlank)
-      .collect(Collectors.joining(", "));
-  }
-
-  private String mapVendorRefNumber(VendorDetail vendorDetail) {
-    return Optional.ofNullable(vendorDetail)
-      .map(VendorDetail::getReferenceNumbers)
-      .filter(refs -> !refs.isEmpty())
-      .map(List::getFirst)
-      .map(ReferenceNumberItem::getRefNumber)
-      .orElse("");
   }
 }

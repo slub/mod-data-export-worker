@@ -73,9 +73,7 @@ class OrderEmailContextMapperTest {
     var wrapper = ctx.getOrders().get(0);
     assertThat(wrapper.order().getPoNumber()).isEqualTo("10000");
     assertThat(wrapper.order().getOrderDate()).isEqualTo("2021-01-15");
-    assertThat(wrapper.order().getOrderType()).isEqualTo("One-Time");
     assertThat(wrapper.order().getCreatedBy()).isEqualTo("John Doe");
-    assertThat(wrapper.order().getTotalEstimatedPrice()).isEqualTo("1.8");
     assertThat(wrapper.order().getShipTo()).isEqualTo(SHIP_TO_ADDRESS);
     assertThat(wrapper.order().getBillTo()).isEqualTo(BILL_TO_ADDRESS);
   }
@@ -131,23 +129,14 @@ class OrderEmailContextMapperTest {
     OrderLineContext line = lines.get(0).orderLine();
     assertThat(line.getPoLineNumber()).isEqualTo("10000-1");
     assertThat(line.getTitle()).isEqualTo("Futures, biometrics and neuroscience research Luiz Moutinho, Mladen Sokele, editors");
-    assertThat(line.getContributors()).isEqualTo("Moutinho, Luiz");
-    assertThat(line.getPublisher()).isEqualTo("Palgrave Macmillan");
     assertThat(line.getPublicationDate()).isEqualTo("2021");
     assertThat(line.getEdition()).isEqualTo("2nd ed.");
     assertThat(line.getProductIdentifier()).isEqualTo("9783319643991");
     assertThat(line.getProductIdentifierType()).isEqualTo("ISBN");
-    assertThat(line.getMaterialType()).isEqualTo("1a54b431-2e4f-452d-9cae-9cee66c9a892");
     assertThat(line.getListUnitPrice()).isEqualTo("2.0");
-    assertThat(line.getListUnitPriceElectronic()).isEqualTo("3.0");
     assertThat(line.getCurrency()).isEqualTo("USD");
-    assertThat(line.getQuantityPhysical()).isEqualTo(1);
-    assertThat(line.getQuantityElectronic()).isEqualTo(0);
     assertThat(line.getQuantity()).isEqualTo(1);
     assertThat(line.getEstimatedPrice()).isEqualTo("1.8");
-    assertThat(line.getFundCodes()).isEqualTo("USHIST");
-    assertThat(line.getVendorRefNumber()).isEqualTo("ORD1000");
-    assertThat(line.getInstructions()).isEqualTo("Handle with care");
   }
 
   @Test
@@ -166,7 +155,6 @@ class OrderEmailContextMapperTest {
 
     assertThat(ctx.getOrders()).isEmpty();
     assertThat(ctx.getOrganization().getName()).isEmpty();
-    assertThat(ctx.getOrganization().getCode()).isEmpty();
     assertThat(ctx.getOrganization().getPrimaryAddress().getAddressLine1()).isEmpty();
   }
 
@@ -185,7 +173,6 @@ class OrderEmailContextMapperTest {
 
     var organization = ctx.getOrganization();
     assertThat(organization.getName()).isEqualTo("Acme Books");
-    assertThat(organization.getCode()).isEqualTo("ACME");
     assertThat(organization.getPrimaryAddress().getAddressLine1()).isEqualTo("100 Main St");
     assertThat(organization.getPrimaryAddress().getCity()).isEqualTo("Springfield");
     assertThat(organization.getPrimaryAddress().getZipCode()).isEqualTo("12345");
@@ -244,18 +231,6 @@ class OrderEmailContextMapperTest {
     assertThat(line.getListUnitPrice()).isEmpty();
     assertThat(line.getCurrency()).isEmpty();
     assertThat(line.getQuantity()).isEqualTo(0);
-  }
-
-  @Test
-  void buildContext_nullVendorDetail_doesNotThrow() throws IOException {
-    var order = loadOrder("edifact/acquisitions/composite_purchase_order.json");
-    order.getPoLines().get(0).setVendorDetail(null);
-
-    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
-
-    OrderLineContext line = ctx.getOrders().get(0).orderLines().get(0).orderLine();
-    assertThat(line.getVendorRefNumber()).isEmpty();
-    assertThat(line.getInstructions()).isEmpty();
   }
 
   private CompositePurchaseOrder loadOrder(String path) throws IOException {

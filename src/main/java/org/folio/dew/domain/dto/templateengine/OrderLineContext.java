@@ -9,13 +9,10 @@ public class OrderLineContext {
 
   private String poLineNumber;
   private String title;
-  private String contributors;
-  private String publisher;
   private String publicationDate;
   private String edition;
   private String productIdentifier;
   private String productIdentifierType;
-  private String materialType;
   private String listUnitPrice;
   private String listUnitPriceElectronic;
   private Integer quantityPhysical;
@@ -23,7 +20,4 @@ public class OrderLineContext {
   private Integer quantity;
   private String estimatedPrice;
   private String currency;
-  private String fundCodes;
-  private String vendorRefNumber;
-  private String instructions;
 }
