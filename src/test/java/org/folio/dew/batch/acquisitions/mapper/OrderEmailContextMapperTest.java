@@ -1,16 +1,6 @@
 package org.folio.dew.batch.acquisitions.mapper;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.folio.dew.utils.TestUtils.getMockData;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.when;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.UUID;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.folio.dew.batch.acquisitions.services.ConfigurationService;
 import org.folio.dew.batch.acquisitions.services.IdentifierTypeService;
 import org.folio.dew.batch.acquisitions.services.OrganizationsService;
@@ -20,14 +10,22 @@ import org.folio.dew.domain.dto.acquisitions.edifact.Organization;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
 import org.folio.dew.domain.dto.templateengine.OrderEmailContext;
 import org.folio.dew.domain.dto.templateengine.OrderLineContext;
-import org.folio.dew.domain.dto.templateengine.OrderWrapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.folio.dew.utils.TestUtils.getMockData;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class OrderEmailContextMapperTest {
@@ -230,7 +228,7 @@ class OrderEmailContextMapperTest {
     OrderLineContext line = ctx.getOrders().get(0).orderLines().get(0).orderLine();
     assertThat(line.getListUnitPrice()).isEmpty();
     assertThat(line.getCurrency()).isEmpty();
-    assertThat(line.getQuantity()).isEqualTo(0);
+    assertThat(line.getQuantity()).isZero();
   }
 
   private CompositePurchaseOrder loadOrder(String path) throws IOException {

@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Component
@@ -86,7 +86,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   }
 
   private OrganizationAddressContext pickPrimaryAddress(List<OrganizationAddress> addresses) {
-    return pickPrimary(addresses, OrganizationAddress::getIsPrimary)
+    return pickPrimary(addresses, addr -> Boolean.TRUE.equals(addr.getIsPrimary()))
       .map(addr -> OrganizationAddressContext.builder()
         .addressLine1(StringUtils.defaultString(addr.getAddressLine1()))
         .city(StringUtils.defaultString(addr.getCity()))
@@ -96,12 +96,12 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .orElseGet(this::emptyOrganizationAddressContext);
   }
 
-  private <T> Optional<T> pickPrimary(List<T> items, Function<T, Boolean> isPrimary) {
+  private <T> Optional<T> pickPrimary(List<T> items, Predicate<T> isPrimary) {
     if (CollectionUtils.isEmpty(items)) {
       return Optional.empty();
     }
     return items.stream()
-      .filter(item -> Boolean.TRUE.equals(isPrimary.apply(item)))
+      .filter(isPrimary)
       .findFirst();
   }
 
