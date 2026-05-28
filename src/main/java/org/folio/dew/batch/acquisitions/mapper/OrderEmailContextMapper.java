@@ -9,7 +9,6 @@ import org.folio.dew.batch.acquisitions.services.OrganizationsService;
 import org.folio.dew.batch.acquisitions.services.UserService;
 import org.folio.dew.batch.acquisitions.utils.ExportUtils;
 import org.folio.dew.domain.dto.*;
-import org.folio.dew.domain.dto.acquisitions.edifact.Organization;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
 import org.folio.dew.domain.dto.templateengine.OrderContext;
 import org.folio.dew.domain.dto.templateengine.OrderEmailContext;
@@ -51,22 +50,16 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   }
 
   private OrganizationContext mapOrganization(List<CompositePurchaseOrder> orders) {
-    var vendorId = orders.stream()
+    return orders.stream()
       .map(CompositePurchaseOrder::getVendor)
       .filter(Objects::nonNull)
       .findFirst()
-      .orElse(null);
-    if (vendorId == null) {
-      return emptyOrganizationContext();
-    }
-    Organization org = organizationsService.getOrganizationById(vendorId.toString());
-    if (org == null) {
-      return emptyOrganizationContext();
-    }
-    return OrganizationContext.builder()
-      .name(StringUtils.defaultString(org.getName()))
-      .primaryAddress(pickPrimaryAddress(org.getAddresses()))
-      .build();
+      .map(vendorId -> organizationsService.getOrganizationById(vendorId.toString()))
+      .map(org -> OrganizationContext.builder()
+        .name(StringUtils.defaultString(org.getName()))
+        .primaryAddress(pickPrimaryAddress(org.getAddresses()))
+        .build())
+      .orElseGet(this::emptyOrganizationContext);
   }
 
   private OrganizationContext emptyOrganizationContext() {
