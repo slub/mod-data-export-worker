@@ -1,4 +1,9 @@
 ## Unreleased v3.6.0
+
+## 2026-06-04 v3.5.1
+
+[Full Changelog](https://github.com/folio-org/mod-data-export-worker/compare/v3.5.0...v3.5.1)
+
 ### Stories
 [MODEXPW-634](https://folio-org.atlassian.net/browse/MODEXPW-634) Use contains lookup to retrieve agreement lines for all titles in a package in a single query
 
