@@ -61,6 +61,15 @@ public class ExportUtils {
     return Optional.ofNullable(date).map(new SimpleDateFormat("yyyy-MM-dd")::format).orElse("");
   }
 
+  public static boolean isHtmlOutput(String outputFormat) {
+    return outputFormat != null && outputFormat.toLowerCase().contains("html");
+  }
+
+  public static String toLineBreaks(String value, boolean htmlOutput) {
+    String safe = StringUtils.defaultString(value);
+    return htmlOutput ? safe.replace("\n", "<br>") : safe;
+  }
+
   public static <T> void validateField(String field, T value, Predicate<T> validator, List<String> missingFields) {
     if (!validator.test(value)) {
       missingFields.add(field);

@@ -1,5 +1,7 @@
 package org.folio.dew.domain.dto.templateengine;
 
+import java.util.Map;
+
 import lombok.Builder;
 import lombok.Data;
 
@@ -12,4 +14,5 @@ public class OrderContext {
   private String createdBy;
   private String shipTo;
   private String billTo;
+  private Map<String, CustomFieldContext> customFields;
 }

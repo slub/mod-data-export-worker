@@ -2,12 +2,14 @@ package org.folio.dew.batch.acquisitions.mapper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.folio.dew.batch.acquisitions.services.ConfigurationService;
+import org.folio.dew.batch.acquisitions.services.CustomFieldsService;
 import org.folio.dew.batch.acquisitions.services.IdentifierTypeService;
 import org.folio.dew.batch.acquisitions.services.OrganizationsService;
 import org.folio.dew.batch.acquisitions.services.UserService;
 import org.folio.dew.domain.dto.CompositePurchaseOrder;
 import org.folio.dew.domain.dto.acquisitions.edifact.Organization;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
+import org.folio.dew.domain.dto.templateengine.CustomFieldContext;
 import org.folio.dew.domain.dto.templateengine.OrderEmailContext;
 import org.folio.dew.domain.dto.templateengine.OrderLineContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,12 +20,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.folio.dew.utils.TestUtils.getMockData;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -44,18 +49,21 @@ class OrderEmailContextMapperTest {
   private UserService userService;
   @Mock
   private OrganizationsService organizationsService;
+  @Mock
+  private CustomFieldsService customFieldsService;
 
   private OrderEmailContextMapper mapper;
   private ObjectMapper objectMapper;
 
   @BeforeEach
   void setUp() {
-    mapper = new OrderEmailContextMapper(identifierTypeService, configurationService, userService, organizationsService);
+    mapper = new OrderEmailContextMapper(identifierTypeService, configurationService, userService, organizationsService, customFieldsService);
     objectMapper = new ObjectMapper();
     lenient().when(identifierTypeService.getIdentifierTypeName(anyString())).thenReturn("ISBN");
     lenient().when(configurationService.getAddressConfig(any())).thenReturn("");
     lenient().when(userService.getUserName(anyString())).thenReturn("");
     lenient().when(organizationsService.getOrganizationById(anyString())).thenReturn(new Organization());
+    lenient().when(customFieldsService.resolve(any(), anyString(), anyBoolean())).thenReturn(Map.of());
   }
 
   @Test
@@ -135,6 +143,22 @@ class OrderEmailContextMapperTest {
     assertThat(line.getCurrency()).isEqualTo("USD");
     assertThat(line.getQuantity()).isEqualTo(1);
     assertThat(line.getEstimatedPrice()).isEqualTo("1.8");
+  }
+
+  @Test
+  void buildContext_wiresResolvedCustomFieldsOntoOrderAndLine() throws IOException {
+    var orderFields = Map.of("dept", CustomFieldContext.builder().name("Department").value("History").build());
+    var lineFields = Map.of("subjects", CustomFieldContext.builder().name("Subject")
+      .values(List.of()).build());
+    when(customFieldsService.resolve(any(), eq("purchase_order"), eq(true))).thenReturn(orderFields);
+    when(customFieldsService.resolve(any(), eq("po_line"), eq(true))).thenReturn(lineFields);
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
+
+    var wrapper = ctx.getOrders().get(0);
+    assertThat(wrapper.order().getCustomFields()).isSameAs(orderFields);
+    assertThat(wrapper.orderLines().get(0).orderLine().getCustomFields()).isSameAs(lineFields);
   }
 
   @Test

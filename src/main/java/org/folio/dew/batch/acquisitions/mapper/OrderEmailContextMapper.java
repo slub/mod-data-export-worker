@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.folio.dew.batch.acquisitions.services.ConfigurationService;
+import org.folio.dew.batch.acquisitions.services.CustomFieldsService;
 import org.folio.dew.batch.acquisitions.services.IdentifierTypeService;
 import org.folio.dew.batch.acquisitions.services.OrganizationsService;
 import org.folio.dew.batch.acquisitions.services.UserService;
@@ -29,18 +30,22 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderEmailContextMapper extends EmailContextMapper {
 
+  private static final String ENTITY_TYPE_PURCHASE_ORDER = "purchase_order";
+  private static final String ENTITY_TYPE_PO_LINE = "po_line";
+
   private final IdentifierTypeService identifierTypeService;
   private final ConfigurationService configurationService;
   private final UserService userService;
   private final OrganizationsService organizationsService;
+  private final CustomFieldsService customFieldsService;
 
   public OrderEmailContext buildContext(List<CompositePurchaseOrder> orders, String outputFormat) {
-    boolean htmlOutput = isHtmlOutput(outputFormat);
+    boolean htmlOutput = ExportUtils.isHtmlOutput(outputFormat);
     var orderWrappers = orders.stream()
       .map(order -> new OrderWrapper(
         mapOrder(order, htmlOutput),
         order.getPoLines().stream()
-          .map(line -> new OrderLineWrapper(mapOrderLine(line)))
+          .map(line -> new OrderLineWrapper(mapOrderLine(line, htmlOutput)))
           .toList()))
       .toList();
     return OrderEmailContext.builder()
@@ -103,12 +108,13 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .poNumber(StringUtils.defaultString(order.getPoNumber()))
       .orderDate(StringUtils.defaultString(ExportUtils.getFormattedDate(order.getDateOrdered())))
       .createdBy(userService.getUserName(Optional.ofNullable(order.getMetadata()).map(Metadata::getCreatedByUserId).map(Object::toString).orElse("")))
-      .shipTo(toLineBreaks(configurationService.getAddressConfig(order.getShipTo()), htmlOutput))
-      .billTo(toLineBreaks(configurationService.getAddressConfig(order.getBillTo()), htmlOutput))
+      .shipTo(ExportUtils.toLineBreaks(configurationService.getAddressConfig(order.getShipTo()), htmlOutput))
+      .billTo(ExportUtils.toLineBreaks(configurationService.getAddressConfig(order.getBillTo()), htmlOutput))
+      .customFields(customFieldsService.resolve(order.getCustomFields(), ENTITY_TYPE_PURCHASE_ORDER, htmlOutput))
       .build();
   }
 
-  private OrderLineContext mapOrderLine(PoLine line) {
+  private OrderLineContext mapOrderLine(PoLine line, boolean htmlOutput) {
     var cost = line.getCost();
     var quantityPhysical = Optional.ofNullable(cost).map(Cost::getQuantityPhysical).orElse(0);
     var quantityElectronic = Optional.ofNullable(cost).map(Cost::getQuantityElectronic).orElse(0);
@@ -126,6 +132,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .quantity(quantityPhysical + quantityElectronic)
       .estimatedPrice(formatDecimal(Optional.ofNullable(cost).map(Cost::getPoLineEstimatedPrice).orElse(null)))
       .currency(Optional.ofNullable(cost).map(Cost::getCurrency).orElse(""))
+      .customFields(customFieldsService.resolve(line.getCustomFields(), ENTITY_TYPE_PO_LINE, htmlOutput))
       .build();
   }
 
