@@ -91,6 +91,18 @@ class SendToEmailTaskletTest extends BaseBatchTest {
 
   @Test
   @DirtiesContext
+  void testSendEmail_shouldFail_whenNoTemplateConfigured() throws Exception {
+    JobOperatorTestUtils testLauncher = createTestLauncher(edifactExportJob);
+
+    var jobParameters = getJobParameters("edifact/edifactEmailOrdersExportNoTemplate.json");
+    ExecutionContext executionContext = getExecutionContext();
+    JobExecution jobExecution = testLauncher.startStep("sendToEmailStep", jobParameters, executionContext);
+
+    assertThat(jobExecution.getExitStatus().getExitCode()).isEqualTo(ExitStatus.FAILED.getExitCode());
+  }
+
+  @Test
+  @DirtiesContext
   void testSendEmailSuccessful_forOrderingIntegrationType() throws Exception {
     JobOperatorTestUtils testLauncher = createTestLauncher(edifactExportJob);
 

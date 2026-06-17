@@ -7,7 +7,6 @@ import org.folio.dew.domain.dto.VendorEdiOrdersExportConfig;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.step.StepExecution;
 
-import static org.folio.dew.domain.dto.VendorEdiOrdersExportConfig.IntegrationTypeEnum.CLAIMING;
 import static org.folio.dew.domain.dto.VendorEdiOrdersExportConfig.TransmissionMethodEnum.EMAIL;
 
 

@@ -37,7 +37,8 @@ import static org.folio.dew.domain.dto.JobParameterNames.*;
 public class SendToEmailTasklet implements Tasklet {
 
   private static final String EMAIL_ERROR_MESSAGE = "Failed to send the email";
-  private static final String TEMPLATE_ENGINE_ERROR_MESSAGE = "Failed to retrieve the template";
+  private static final String TEMPLATE_ENGINE_ERROR_MESSAGE = "Failed to retrieve the email template";
+  private static final String TEMPLATE_NOT_CONFIGURED_ERROR_MESSAGE = "Failed because no email template has been configured";
 
   private final ObjectMapper ediObjectMapper;
   private final EmailClient emailClient;
@@ -74,7 +75,10 @@ public class SendToEmailTasklet implements Tasklet {
   private String[] resolveTemplate(VendorEdiOrdersExportConfig exportConfig) {
     UUID templateId = Optional.ofNullable(exportConfig.getEdiEmail())
       .map(EdiEmail::getEmailTemplate)
-      .orElse(null);
+      .orElseThrow(() -> {
+        log.error(TEMPLATE_NOT_CONFIGURED_ERROR_MESSAGE);
+        return new EdifactException(TEMPLATE_NOT_CONFIGURED_ERROR_MESSAGE);
+      });
 
     var request = TemplateProcessingRequest.builder()
       .templateId(templateId)
