@@ -35,20 +35,21 @@ import one.util.streamex.StreamEx;
 public class MapToEdifactClaimsTasklet extends MapToEdifactTasklet {
 
   private final ExportResourceMapper edifactMapper;
-  private final ExportResourceMapper claimCsvMapper;
+  private final ExportResourceMapper csvMapper;
 
   public MapToEdifactClaimsTasklet(ObjectMapper ediObjectMapper, OrganizationsService organizationsService, OrdersService ordersService,
                                    ExportResourceMapper edifactMapper, ExportResourceMapper claimCsvMapper) {
     super(ediObjectMapper, organizationsService, ordersService);
     this.edifactMapper = edifactMapper;
-    this.claimCsvMapper = claimCsvMapper;
+    this.csvMapper = claimCsvMapper;
   }
 
   @Override
   protected ExportResourceMapper getExportResourceMapper(VendorEdiOrdersExportConfig ediOrdersExportConfig) {
     return switch (ediOrdersExportConfig.getFileFormat()) {
       case EDI -> edifactMapper;
-      case CSV -> claimCsvMapper;
+      case CSV -> csvMapper;
+      default -> edifactMapper;
     };
   }
 
