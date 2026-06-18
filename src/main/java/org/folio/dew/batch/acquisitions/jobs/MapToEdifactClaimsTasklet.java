@@ -49,7 +49,6 @@ public class MapToEdifactClaimsTasklet extends MapToEdifactTasklet {
     return switch (ediOrdersExportConfig.getFileFormat()) {
       case EDI -> edifactMapper;
       case CSV -> csvMapper;
-      default -> edifactMapper;
     };
   }
 
