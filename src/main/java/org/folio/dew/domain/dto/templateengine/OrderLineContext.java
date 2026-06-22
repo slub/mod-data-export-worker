@@ -11,13 +11,7 @@ public class OrderLineContext {
   private String title;
   private String publicationDate;
   private String edition;
-  private String productIdentifier;
-  private String productIdentifierType;
-  private String listUnitPrice;
-  private String listUnitPriceElectronic;
-  private Integer quantityPhysical;
-  private Integer quantityElectronic;
-  private Integer quantity;
-  private String estimatedPrice;
-  private String currency;
+  private DetailsContext details;
+  private CostContext cost;
+  private VendorDetailContext vendorDetail;
 }

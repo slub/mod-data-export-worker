@@ -10,6 +10,8 @@ import org.folio.dew.batch.acquisitions.services.UserService;
 import org.folio.dew.batch.acquisitions.utils.ExportUtils;
 import org.folio.dew.domain.dto.*;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
+import org.folio.dew.domain.dto.templateengine.CostContext;
+import org.folio.dew.domain.dto.templateengine.DetailsContext;
 import org.folio.dew.domain.dto.templateengine.OrderContext;
 import org.folio.dew.domain.dto.templateengine.OrderEmailContext;
 import org.folio.dew.domain.dto.templateengine.OrderLineContext;
@@ -17,13 +19,14 @@ import org.folio.dew.domain.dto.templateengine.OrderLineWrapper;
 import org.folio.dew.domain.dto.templateengine.OrderWrapper;
 import org.folio.dew.domain.dto.templateengine.OrganizationAddressContext;
 import org.folio.dew.domain.dto.templateengine.OrganizationContext;
+import org.folio.dew.domain.dto.templateengine.ProductIdContext;
+import org.folio.dew.domain.dto.templateengine.VendorDetailContext;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -40,7 +43,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .map(order -> new OrderWrapper(
         mapOrder(order, htmlOutput),
         order.getPoLines().stream()
-          .map(line -> new OrderLineWrapper(mapOrderLine(line)))
+          .map(line -> new OrderLineWrapper(mapOrderLine(line, htmlOutput)))
           .toList()))
       .toList();
     return OrderEmailContext.builder()
@@ -101,6 +104,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   private OrderContext mapOrder(CompositePurchaseOrder order, boolean htmlOutput) {
     return OrderContext.builder()
       .poNumber(StringUtils.defaultString(order.getPoNumber()))
+      .orderType(Optional.ofNullable(order.getOrderType()).map(CompositePurchaseOrder.OrderTypeEnum::getValue).orElse(""))
       .orderDate(StringUtils.defaultString(ExportUtils.getFormattedDate(order.getDateOrdered())))
       .createdBy(userService.getUserName(Optional.ofNullable(order.getMetadata()).map(Metadata::getCreatedByUserId).map(Object::toString).orElse("")))
       .shipTo(toLineBreaks(configurationService.getAddressConfig(order.getShipTo()), htmlOutput))
@@ -108,17 +112,22 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .build();
   }
 
-  private OrderLineContext mapOrderLine(PoLine line) {
-    var cost = line.getCost();
-    var quantityPhysical = Optional.ofNullable(cost).map(Cost::getQuantityPhysical).orElse(0);
-    var quantityElectronic = Optional.ofNullable(cost).map(Cost::getQuantityElectronic).orElse(0);
+  private OrderLineContext mapOrderLine(PoLine line, boolean htmlOutput) {
     return OrderLineContext.builder()
       .poLineNumber(StringUtils.defaultString(line.getPoLineNumber()))
       .title(StringUtils.defaultString(line.getTitleOrPackage()))
       .publicationDate(StringUtils.defaultString(line.getPublicationDate()))
       .edition(StringUtils.defaultString(line.getEdition()))
-      .productIdentifier(mapProductIdentifiers(line.getDetails()))
-      .productIdentifierType(mapProductIdentifierTypes(line.getDetails()))
+      .details(mapDetails(line.getDetails()))
+      .cost(mapCost(line.getCost()))
+      .vendorDetail(mapVendorDetail(line.getVendorDetail(), htmlOutput))
+      .build();
+  }
+
+  private CostContext mapCost(Cost cost) {
+    var quantityPhysical = Optional.ofNullable(cost).map(Cost::getQuantityPhysical).orElse(0);
+    var quantityElectronic = Optional.ofNullable(cost).map(Cost::getQuantityElectronic).orElse(0);
+    return CostContext.builder()
       .listUnitPrice(formatDecimal(Optional.ofNullable(cost).map(Cost::getListUnitPrice).orElse(null)))
       .listUnitPriceElectronic(formatDecimal(Optional.ofNullable(cost).map(Cost::getListUnitPriceElectronic).orElse(null)))
       .quantityPhysical(quantityPhysical)
@@ -129,25 +138,34 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .build();
   }
 
-  private String mapProductIdentifiers(Details details) {
-    if (details == null || CollectionUtils.isEmpty(details.getProductIds())) {
-      return "";
-    }
-    return details.getProductIds().stream()
-      .map(ProductIdentifier::getProductId)
-      .filter(StringUtils::isNotBlank)
-      .collect(Collectors.joining("; "));
+  private VendorDetailContext mapVendorDetail(VendorDetail vendorDetail, boolean htmlOutput) {
+    return VendorDetailContext.builder()
+      .instructions(toLineBreaks(Optional.ofNullable(vendorDetail).map(VendorDetail::getInstructions).orElse(""), htmlOutput))
+      .build();
   }
 
-  private String mapProductIdentifierTypes(Details details) {
+  private DetailsContext mapDetails(Details details) {
+    return DetailsContext.builder()
+      .productIds(mapProductIds(details))
+      .build();
+  }
+
+  private List<ProductIdContext> mapProductIds(Details details) {
     if (details == null || CollectionUtils.isEmpty(details.getProductIds())) {
-      return "";
+      return List.of();
     }
     return details.getProductIds().stream()
-      .map(ProductIdentifier::getProductIdType)
-      .filter(StringUtils::isNotBlank)
-      .map(identifierTypeService::getIdentifierTypeName)
-      .filter(StringUtils::isNotBlank)
-      .collect(Collectors.joining("; "));
+      .map(this::mapProductId)
+      .toList();
+  }
+
+  private ProductIdContext mapProductId(ProductIdentifier productId) {
+    var productIdType = StringUtils.defaultString(productId.getProductIdType());
+    return ProductIdContext.builder()
+      .productId(StringUtils.defaultString(productId.getProductId()))
+      .qualifier(StringUtils.defaultString(productId.getQualifier()))
+      .productIdType(productIdType)
+      .productIdTypeName(StringUtils.isBlank(productIdType) ? "" : StringUtils.defaultString(identifierTypeService.getIdentifierTypeName(productIdType)))
+      .build();
   }
 }

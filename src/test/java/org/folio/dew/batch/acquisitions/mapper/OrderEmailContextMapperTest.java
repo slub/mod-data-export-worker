@@ -70,6 +70,7 @@ class OrderEmailContextMapperTest {
     assertThat(ctx.getOrders()).hasSize(1);
     var wrapper = ctx.getOrders().get(0);
     assertThat(wrapper.order().getPoNumber()).isEqualTo("10000");
+    assertThat(wrapper.order().getOrderType()).isEqualTo("One-Time");
     assertThat(wrapper.order().getOrderDate()).isEqualTo("2021-01-15");
     assertThat(wrapper.order().getCreatedBy()).isEqualTo("John Doe");
     assertThat(wrapper.order().getShipTo()).isEqualTo(SHIP_TO_ADDRESS);
@@ -129,12 +130,17 @@ class OrderEmailContextMapperTest {
     assertThat(line.getTitle()).isEqualTo("Futures, biometrics and neuroscience research Luiz Moutinho, Mladen Sokele, editors");
     assertThat(line.getPublicationDate()).isEqualTo("2021");
     assertThat(line.getEdition()).isEqualTo("2nd ed.");
-    assertThat(line.getProductIdentifier()).isEqualTo("9783319643991");
-    assertThat(line.getProductIdentifierType()).isEqualTo("ISBN");
-    assertThat(line.getListUnitPrice()).isEqualTo("2.0");
-    assertThat(line.getCurrency()).isEqualTo("USD");
-    assertThat(line.getQuantity()).isEqualTo(1);
-    assertThat(line.getEstimatedPrice()).isEqualTo("1.8");
+    assertThat(line.getDetails().getProductIds()).hasSize(1);
+    var productId = line.getDetails().getProductIds().get(0);
+    assertThat(productId.getProductId()).isEqualTo("9783319643991");
+    assertThat(productId.getQualifier()).isEqualTo("(paperback)");
+    assertThat(productId.getProductIdType()).isEqualTo("8261054f-be78-422d-bd51-4ed9f33c3422");
+    assertThat(productId.getProductIdTypeName()).isEqualTo("ISBN");
+    assertThat(line.getCost().getListUnitPrice()).isEqualTo("2.0");
+    assertThat(line.getCost().getCurrency()).isEqualTo("USD");
+    assertThat(line.getCost().getQuantity()).isEqualTo(1);
+    assertThat(line.getCost().getEstimatedPrice()).isEqualTo("1.8");
+    assertThat(line.getVendorDetail().getInstructions()).isEqualTo("Handle with care");
   }
 
   @Test
@@ -226,9 +232,42 @@ class OrderEmailContextMapperTest {
     OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
     OrderLineContext line = ctx.getOrders().get(0).orderLines().get(0).orderLine();
-    assertThat(line.getListUnitPrice()).isEmpty();
-    assertThat(line.getCurrency()).isEmpty();
-    assertThat(line.getQuantity()).isZero();
+    assertThat(line.getCost().getListUnitPrice()).isEmpty();
+    assertThat(line.getCost().getCurrency()).isEmpty();
+    assertThat(line.getCost().getQuantity()).isZero();
+  }
+
+  @Test
+  void buildContext_instructionsNewlines_renderedAsBrTags() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+    order.getPoLines().get(0).getVendorDetail().setInstructions("Line 1\nLine 2");
+
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
+
+    OrderLineContext line = ctx.getOrders().get(0).orderLines().get(0).orderLine();
+    assertThat(line.getVendorDetail().getInstructions()).isEqualTo("Line 1<br>Line 2");
+  }
+
+  @Test
+  void buildContext_instructionsNewlines_plainTextKeepsNewlines() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+    order.getPoLines().get(0).getVendorDetail().setInstructions("Line 1\nLine 2");
+
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/plain");
+
+    OrderLineContext line = ctx.getOrders().get(0).orderLines().get(0).orderLine();
+    assertThat(line.getVendorDetail().getInstructions()).isEqualTo("Line 1\nLine 2");
+  }
+
+  @Test
+  void buildContext_nullVendorDetail_doesNotThrow() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+    order.getPoLines().get(0).setVendorDetail(null);
+
+    OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
+
+    OrderLineContext line = ctx.getOrders().get(0).orderLines().get(0).orderLine();
+    assertThat(line.getVendorDetail().getInstructions()).isEmpty();
   }
 
   private CompositePurchaseOrder loadOrder(String path) throws IOException {

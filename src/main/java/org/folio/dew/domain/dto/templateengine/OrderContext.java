@@ -8,6 +8,7 @@ import lombok.Data;
 public class OrderContext {
 
   private String poNumber;
+  private String orderType;
   private String orderDate;
   private String createdBy;
   private String shipTo;
