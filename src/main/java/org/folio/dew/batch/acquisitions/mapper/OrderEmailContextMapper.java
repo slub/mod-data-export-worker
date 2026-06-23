@@ -4,12 +4,14 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.folio.dew.batch.acquisitions.services.ConfigurationService;
+import org.folio.dew.batch.acquisitions.services.ContributorNameTypeService;
 import org.folio.dew.batch.acquisitions.services.IdentifierTypeService;
 import org.folio.dew.batch.acquisitions.services.OrganizationsService;
 import org.folio.dew.batch.acquisitions.services.UserService;
 import org.folio.dew.batch.acquisitions.utils.ExportUtils;
 import org.folio.dew.domain.dto.*;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
+import org.folio.dew.domain.dto.templateengine.ContributorContext;
 import org.folio.dew.domain.dto.templateengine.CostContext;
 import org.folio.dew.domain.dto.templateengine.DetailsContext;
 import org.folio.dew.domain.dto.templateengine.OrderContext;
@@ -33,6 +35,7 @@ import java.util.function.Predicate;
 public class OrderEmailContextMapper extends EmailContextMapper {
 
   private final IdentifierTypeService identifierTypeService;
+  private final ContributorNameTypeService contributorNameTypeService;
   private final ConfigurationService configurationService;
   private final UserService userService;
   private final OrganizationsService organizationsService;
@@ -118,6 +121,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .title(StringUtils.defaultString(line.getTitleOrPackage()))
       .publicationDate(StringUtils.defaultString(line.getPublicationDate()))
       .edition(StringUtils.defaultString(line.getEdition()))
+      .contributors(mapContributors(line.getContributors()))
       .details(mapDetails(line.getDetails()))
       .cost(mapCost(line.getCost()))
       .vendorDetail(mapVendorDetail(line.getVendorDetail(), htmlOutput))
@@ -141,6 +145,24 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   private VendorDetailContext mapVendorDetail(VendorDetail vendorDetail, boolean htmlOutput) {
     return VendorDetailContext.builder()
       .instructions(toLineBreaks(Optional.ofNullable(vendorDetail).map(VendorDetail::getInstructions).orElse(""), htmlOutput))
+      .build();
+  }
+
+  private List<ContributorContext> mapContributors(List<Contributor> contributors) {
+    if (CollectionUtils.isEmpty(contributors)) {
+      return List.of();
+    }
+    return contributors.stream()
+      .map(this::mapContributor)
+      .toList();
+  }
+
+  private ContributorContext mapContributor(Contributor contributor) {
+    var contributorNameType = StringUtils.defaultString(contributor.getContributorNameTypeId());
+    return ContributorContext.builder()
+      .contributor(StringUtils.defaultString(contributor.getContributor()))
+      .contributorNameType(contributorNameType)
+      .contributorNameTypeName(StringUtils.isBlank(contributorNameType) ? "" : StringUtils.defaultString(contributorNameTypeService.getContributorNameTypeName(contributorNameType)))
       .build();
   }
 

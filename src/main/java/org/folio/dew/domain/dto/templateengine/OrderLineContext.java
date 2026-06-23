@@ -3,6 +3,8 @@ package org.folio.dew.domain.dto.templateengine;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @Builder
 public class OrderLineContext {
@@ -11,6 +13,7 @@ public class OrderLineContext {
   private String title;
   private String publicationDate;
   private String edition;
+  private List<ContributorContext> contributors;
   private DetailsContext details;
   private CostContext cost;
   private VendorDetailContext vendorDetail;

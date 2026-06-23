@@ -2,6 +2,7 @@ package org.folio.dew.batch.acquisitions.mapper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.folio.dew.batch.acquisitions.services.ConfigurationService;
+import org.folio.dew.batch.acquisitions.services.ContributorNameTypeService;
 import org.folio.dew.batch.acquisitions.services.IdentifierTypeService;
 import org.folio.dew.batch.acquisitions.services.OrganizationsService;
 import org.folio.dew.batch.acquisitions.services.UserService;
@@ -39,6 +40,8 @@ class OrderEmailContextMapperTest {
   @Mock
   private IdentifierTypeService identifierTypeService;
   @Mock
+  private ContributorNameTypeService contributorNameTypeService;
+  @Mock
   private ConfigurationService configurationService;
   @Mock
   private UserService userService;
@@ -50,9 +53,10 @@ class OrderEmailContextMapperTest {
 
   @BeforeEach
   void setUp() {
-    mapper = new OrderEmailContextMapper(identifierTypeService, configurationService, userService, organizationsService);
+    mapper = new OrderEmailContextMapper(identifierTypeService, contributorNameTypeService, configurationService, userService, organizationsService);
     objectMapper = new ObjectMapper();
     lenient().when(identifierTypeService.getIdentifierTypeName(anyString())).thenReturn("ISBN");
+    lenient().when(contributorNameTypeService.getContributorNameTypeName(anyString())).thenReturn("Personal name");
     lenient().when(configurationService.getAddressConfig(any())).thenReturn("");
     lenient().when(userService.getUserName(anyString())).thenReturn("");
     lenient().when(organizationsService.getOrganizationById(anyString())).thenReturn(new Organization());
@@ -130,6 +134,11 @@ class OrderEmailContextMapperTest {
     assertThat(line.getTitle()).isEqualTo("Futures, biometrics and neuroscience research Luiz Moutinho, Mladen Sokele, editors");
     assertThat(line.getPublicationDate()).isEqualTo("2021");
     assertThat(line.getEdition()).isEqualTo("2nd ed.");
+    assertThat(line.getContributors()).hasSize(1);
+    var contributor = line.getContributors().get(0);
+    assertThat(contributor.getContributor()).isEqualTo("Moutinho, Luiz");
+    assertThat(contributor.getContributorNameType()).isEqualTo("2b94c631-fca9-4892-a730-03ee529ffe2a");
+    assertThat(contributor.getContributorNameTypeName()).isEqualTo("Personal name");
     assertThat(line.getDetails().getProductIds()).hasSize(1);
     var productId = line.getDetails().getProductIds().get(0);
     assertThat(productId.getProductId()).isEqualTo("9783319643991");
