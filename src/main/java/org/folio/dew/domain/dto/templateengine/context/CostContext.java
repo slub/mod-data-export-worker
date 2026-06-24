@@ -1,4 +1,4 @@
-package org.folio.dew.domain.dto.templateengine;
+package org.folio.dew.domain.dto.templateengine.context;
 
 import lombok.Builder;
 import lombok.Data;
@@ -13,5 +13,6 @@ public class CostContext {
   private Integer quantityElectronic;
   private Integer quantity;
   private String estimatedPrice;
+  private String poLineEstimatedPrice;
   private String currency;
 }

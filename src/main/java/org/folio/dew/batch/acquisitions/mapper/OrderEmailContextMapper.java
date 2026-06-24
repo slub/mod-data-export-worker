@@ -11,23 +11,27 @@ import org.folio.dew.batch.acquisitions.services.UserService;
 import org.folio.dew.batch.acquisitions.utils.ExportUtils;
 import org.folio.dew.domain.dto.*;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
-import org.folio.dew.domain.dto.templateengine.ContributorContext;
-import org.folio.dew.domain.dto.templateengine.CostContext;
-import org.folio.dew.domain.dto.templateengine.DetailsContext;
-import org.folio.dew.domain.dto.templateengine.OrderContext;
-import org.folio.dew.domain.dto.templateengine.OrderEmailContext;
-import org.folio.dew.domain.dto.templateengine.OrderLineContext;
-import org.folio.dew.domain.dto.templateengine.OrderLineWrapper;
-import org.folio.dew.domain.dto.templateengine.OrderWrapper;
-import org.folio.dew.domain.dto.templateengine.OrganizationAddressContext;
-import org.folio.dew.domain.dto.templateengine.OrganizationContext;
-import org.folio.dew.domain.dto.templateengine.ProductIdContext;
-import org.folio.dew.domain.dto.templateengine.VendorDetailContext;
+import org.folio.dew.domain.dto.templateengine.context.ContributorContext;
+import org.folio.dew.domain.dto.templateengine.context.CostContext;
+import org.folio.dew.domain.dto.templateengine.context.DetailsContext;
+import org.folio.dew.domain.dto.templateengine.context.OrderContext;
+import org.folio.dew.domain.dto.templateengine.context.OrderEmailContext;
+import org.folio.dew.domain.dto.templateengine.context.OrderLineContext;
+import org.folio.dew.domain.dto.templateengine.context.OrderLineWrapper;
+import org.folio.dew.domain.dto.templateengine.context.OrderMetadataContext;
+import org.folio.dew.domain.dto.templateengine.context.OrderWrapper;
+import org.folio.dew.domain.dto.templateengine.context.OrganizationAddressContext;
+import org.folio.dew.domain.dto.templateengine.context.OrganizationContext;
+import org.folio.dew.domain.dto.templateengine.context.ProductIdContext;
+import org.folio.dew.domain.dto.templateengine.context.TenantAddressContext;
+import org.folio.dew.domain.dto.templateengine.context.TypeContext;
+import org.folio.dew.domain.dto.templateengine.context.VendorDetailContext;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Predicate;
 
 @Component
@@ -109,9 +113,34 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .poNumber(StringUtils.defaultString(order.getPoNumber()))
       .orderType(Optional.ofNullable(order.getOrderType()).map(CompositePurchaseOrder.OrderTypeEnum::getValue).orElse(""))
       .orderDate(StringUtils.defaultString(ExportUtils.getFormattedDate(order.getDateOrdered())))
-      .createdBy(userService.getUserName(Optional.ofNullable(order.getMetadata()).map(Metadata::getCreatedByUserId).map(Object::toString).orElse("")))
-      .shipTo(toLineBreaks(configurationService.getAddressConfig(order.getShipTo()), htmlOutput))
-      .billTo(toLineBreaks(configurationService.getAddressConfig(order.getBillTo()), htmlOutput))
+      .metadata(mapOrderMetadata(order.getMetadata()))
+      .shipTo(mapTenantAddress(order.getShipTo(), htmlOutput))
+      .billTo(mapTenantAddress(order.getBillTo(), htmlOutput))
+      .build();
+  }
+
+  private String toUuidString(UUID id) {
+    return Optional.ofNullable(id).map(UUID::toString).orElse("");
+  }
+
+  private TenantAddressContext mapTenantAddress(UUID addressId, boolean htmlOutput) {
+    var tenantAddress = configurationService.getTenantAddress(addressId);
+    if (tenantAddress == null) {
+      return TenantAddressContext.builder().id("").address("").build();
+    }
+    return TenantAddressContext.builder()
+      .id(toUuidString(tenantAddress.getId()))
+      .address(toLineBreaks(StringUtils.defaultString(tenantAddress.getAddress()), htmlOutput))
+      .build();
+  }
+
+  private OrderMetadataContext mapOrderMetadata(Metadata metadata) {
+    var createdByUserId = Optional.ofNullable(metadata)
+      .map(Metadata::getCreatedByUserId)
+      .map(Object::toString)
+      .orElse("");
+    return OrderMetadataContext.builder()
+      .createdByUser(userService.getUserContext(createdByUserId))
       .build();
   }
 
@@ -119,8 +148,10 @@ public class OrderEmailContextMapper extends EmailContextMapper {
     return OrderLineContext.builder()
       .poLineNumber(StringUtils.defaultString(line.getPoLineNumber()))
       .title(StringUtils.defaultString(line.getTitleOrPackage()))
+      .publisher(StringUtils.defaultString(line.getPublisher()))
       .publicationDate(StringUtils.defaultString(line.getPublicationDate()))
       .edition(StringUtils.defaultString(line.getEdition()))
+      .rush(Optional.ofNullable(line.getRush()).orElse(false))
       .contributors(mapContributors(line.getContributors()))
       .details(mapDetails(line.getDetails()))
       .cost(mapCost(line.getCost()))
@@ -138,6 +169,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .quantityElectronic(quantityElectronic)
       .quantity(quantityPhysical + quantityElectronic)
       .estimatedPrice(formatDecimal(Optional.ofNullable(cost).map(Cost::getPoLineEstimatedPrice).orElse(null)))
+      .poLineEstimatedPrice(formatDecimal(Optional.ofNullable(cost).map(Cost::getPoLineEstimatedPrice).orElse(null)))
       .currency(Optional.ofNullable(cost).map(Cost::getCurrency).orElse(""))
       .build();
   }
@@ -158,11 +190,13 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   }
 
   private ContributorContext mapContributor(Contributor contributor) {
-    var contributorNameType = StringUtils.defaultString(contributor.getContributorNameTypeId());
+    var contributorNameTypeId = StringUtils.defaultString(contributor.getContributorNameTypeId());
     return ContributorContext.builder()
       .contributor(StringUtils.defaultString(contributor.getContributor()))
-      .contributorNameType(contributorNameType)
-      .contributorNameTypeName(StringUtils.isBlank(contributorNameType) ? "" : StringUtils.defaultString(contributorNameTypeService.getContributorNameTypeName(contributorNameType)))
+      .contributorNameType(TypeContext.builder()
+        .id(contributorNameTypeId)
+        .name(StringUtils.isBlank(contributorNameTypeId) ? "" : StringUtils.defaultString(contributorNameTypeService.getContributorNameTypeName(contributorNameTypeId)))
+        .build())
       .build();
   }
 
@@ -182,12 +216,14 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   }
 
   private ProductIdContext mapProductId(ProductIdentifier productId) {
-    var productIdType = StringUtils.defaultString(productId.getProductIdType());
+    var productIdTypeId = StringUtils.defaultString(productId.getProductIdType());
     return ProductIdContext.builder()
       .productId(StringUtils.defaultString(productId.getProductId()))
       .qualifier(StringUtils.defaultString(productId.getQualifier()))
-      .productIdType(productIdType)
-      .productIdTypeName(StringUtils.isBlank(productIdType) ? "" : StringUtils.defaultString(identifierTypeService.getIdentifierTypeName(productIdType)))
+      .productIdType(TypeContext.builder()
+        .id(productIdTypeId)
+        .name(StringUtils.isBlank(productIdTypeId) ? "" : StringUtils.defaultString(identifierTypeService.getIdentifierTypeName(productIdTypeId)))
+        .build())
       .build();
   }
 }

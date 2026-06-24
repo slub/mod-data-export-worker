@@ -25,23 +25,30 @@ public class ConfigurationService {
 
   @Cacheable(cacheNames = "addressConfiguration")
   public String getAddressConfig(UUID shipToConfigId) {
+    return ofNullable(getTenantAddress(shipToConfigId))
+      .map(TenantAddress::getAddress)
+      .orElse("");
+  }
+
+  @Cacheable(cacheNames = "tenantAddress")
+  public TenantAddress getTenantAddress(UUID shipToConfigId) {
     if (shipToConfigId == null) {
-      logger.warn("getAddressConfig:: shipToConfigId is null");
-      return "";
+      logger.warn("getTenantAddress:: shipToConfigId is null");
+      return null;
     }
     try {
       TenantAddress addressResponse = tenantAddressesClient.getById(shipToConfigId.toString());
 
       if (addressResponse == null) {
-        logger.warn("getAddressConfig:: No address found for id '{}'", shipToConfigId);
-        return "";
+        logger.warn("getTenantAddress:: No address found for id '{}'", shipToConfigId);
+        return null;
       }
 
-      logger.info("getAddressConfig:: Found address with id '{}'", shipToConfigId);
-      return ofNullable(addressResponse.getAddress()).orElse("");
+      logger.info("getTenantAddress:: Found address with id '{}'", shipToConfigId);
+      return addressResponse;
     } catch (Exception e) {
-      logger.warn("getAddressConfig:: Cannot find address by id: '{}'", shipToConfigId, e);
-      return "";
+      logger.warn("getTenantAddress:: Cannot find address by id: '{}'", shipToConfigId, e);
+      return null;
     }
   }
 }

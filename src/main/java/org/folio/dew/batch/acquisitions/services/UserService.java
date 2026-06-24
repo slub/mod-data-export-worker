@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import org.folio.dew.client.UserClient;
 import org.folio.dew.domain.dto.Personal;
 import org.folio.dew.domain.dto.User;
+import org.folio.dew.domain.dto.templateengine.context.UserContext;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -19,28 +20,56 @@ public class UserService {
   private final UserClient userClient;
 
   @Cacheable(cacheNames = "users")
-  public String getUserName(String userId) {
+  public UserContext getUserContext(String userId) {
     if (StringUtils.isBlank(userId)) {
-      return "";
+      return emptyUserContext();
     }
     try {
       User user = userClient.getUserById(userId);
       if (user == null) {
-        logger.warn("getUserName:: No user found for id '{}'", userId);
-        return "";
+        logger.warn("getUserContext:: No user found for id '{}'", userId);
+        return emptyUserContext();
       }
-      Personal personal = user.getPersonal();
-      if (personal != null) {
-        String name = (StringUtils.defaultString(personal.getFirstName()) + " "
-          + StringUtils.defaultString(personal.getLastName())).trim();
-        if (StringUtils.isNotBlank(name)) {
-          return name;
-        }
-      }
-      return StringUtils.defaultString(user.getUsername());
+      return toUserContext(user);
     } catch (Exception e) {
-      logger.warn("getUserName:: Cannot find user by id: '{}'", userId, e);
-      return "";
+      logger.warn("getUserContext:: Cannot find user by id: '{}'", userId, e);
+      return emptyUserContext();
     }
+  }
+
+  private UserContext toUserContext(User user) {
+    Personal personal = user.getPersonal();
+    String firstName = personal != null ? StringUtils.defaultString(personal.getFirstName()) : "";
+    String lastName = personal != null ? StringUtils.defaultString(personal.getLastName()) : "";
+    String middleName = personal != null ? StringUtils.defaultString(personal.getMiddleName()) : "";
+    String preferredFirstName = personal != null ? StringUtils.defaultString(personal.getPreferredFirstName()) : "";
+    String email = personal != null ? StringUtils.defaultString(personal.getEmail()) : "";
+    String fullName = (firstName + " " + lastName).trim();
+    if (StringUtils.isBlank(fullName)) {
+      fullName = StringUtils.defaultString(user.getUsername());
+    }
+    return UserContext.builder()
+      .id(StringUtils.defaultString(user.getId()))
+      .username(StringUtils.defaultString(user.getUsername()))
+      .firstName(firstName)
+      .lastName(lastName)
+      .middleName(middleName)
+      .preferredFirstName(preferredFirstName)
+      .email(email)
+      .fullName(fullName)
+      .build();
+  }
+
+  private UserContext emptyUserContext() {
+    return UserContext.builder()
+      .id("")
+      .username("")
+      .firstName("")
+      .lastName("")
+      .middleName("")
+      .preferredFirstName("")
+      .email("")
+      .fullName("")
+      .build();
   }
 }

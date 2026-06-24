@@ -1,4 +1,4 @@
-package org.folio.dew.domain.dto.templateengine;
+package org.folio.dew.domain.dto.templateengine.context;
 
 import lombok.Builder;
 import lombok.Data;
@@ -9,6 +9,5 @@ public class ProductIdContext {
 
   private String productId;
   private String qualifier;
-  private String productIdType;
-  private String productIdTypeName;
+  private TypeContext productIdType;
 }

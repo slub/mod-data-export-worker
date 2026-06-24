@@ -1,4 +1,4 @@
-package org.folio.dew.domain.dto.templateengine;
+package org.folio.dew.domain.dto.templateengine.context;
 
 import lombok.Builder;
 import lombok.Data;
@@ -11,8 +11,10 @@ public class OrderLineContext {
 
   private String poLineNumber;
   private String title;
+  private String publisher;
   private String publicationDate;
   private String edition;
+  private Boolean rush;
   private List<ContributorContext> contributors;
   private DetailsContext details;
   private CostContext cost;

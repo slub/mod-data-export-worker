@@ -9,8 +9,10 @@ import org.folio.dew.batch.acquisitions.services.UserService;
 import org.folio.dew.domain.dto.CompositePurchaseOrder;
 import org.folio.dew.domain.dto.acquisitions.edifact.Organization;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
-import org.folio.dew.domain.dto.templateengine.OrderEmailContext;
-import org.folio.dew.domain.dto.templateengine.OrderLineContext;
+import org.folio.dew.domain.dto.acquisitions.edifact.TenantAddress;
+import org.folio.dew.domain.dto.templateengine.context.OrderEmailContext;
+import org.folio.dew.domain.dto.templateengine.context.OrderLineContext;
+import org.folio.dew.domain.dto.templateengine.context.UserContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,16 +59,17 @@ class OrderEmailContextMapperTest {
     objectMapper = new ObjectMapper();
     lenient().when(identifierTypeService.getIdentifierTypeName(anyString())).thenReturn("ISBN");
     lenient().when(contributorNameTypeService.getContributorNameTypeName(anyString())).thenReturn("Personal name");
-    lenient().when(configurationService.getAddressConfig(any())).thenReturn("");
-    lenient().when(userService.getUserName(anyString())).thenReturn("");
+    lenient().when(configurationService.getTenantAddress(any())).thenReturn(null);
+    lenient().when(userService.getUserContext(anyString())).thenReturn(UserContext.builder().build());
     lenient().when(organizationsService.getOrganizationById(anyString())).thenReturn(new Organization());
   }
 
   @Test
   void buildContext_mapsOrderFields() throws IOException {
-    when(configurationService.getAddressConfig(SHIP_TO_UUID)).thenReturn(SHIP_TO_ADDRESS);
-    when(configurationService.getAddressConfig(BILL_TO_UUID)).thenReturn(BILL_TO_ADDRESS);
-    when(userService.getUserName("7a626480-284e-5b55-9cf2-db32f93956cf")).thenReturn("John Doe");
+    when(configurationService.getTenantAddress(SHIP_TO_UUID)).thenReturn(tenantAddress(SHIP_TO_UUID, SHIP_TO_ADDRESS));
+    when(configurationService.getTenantAddress(BILL_TO_UUID)).thenReturn(tenantAddress(BILL_TO_UUID, BILL_TO_ADDRESS));
+    var johnDoe = UserContext.builder().id("7a626480-284e-5b55-9cf2-db32f93956cf").firstName("John").lastName("Doe").fullName("John Doe").build();
+    when(userService.getUserContext("7a626480-284e-5b55-9cf2-db32f93956cf")).thenReturn(johnDoe);
     var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
 
     OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
@@ -76,36 +79,40 @@ class OrderEmailContextMapperTest {
     assertThat(wrapper.order().getPoNumber()).isEqualTo("10000");
     assertThat(wrapper.order().getOrderType()).isEqualTo("One-Time");
     assertThat(wrapper.order().getOrderDate()).isEqualTo("2021-01-15");
-    assertThat(wrapper.order().getCreatedBy()).isEqualTo("John Doe");
-    assertThat(wrapper.order().getShipTo()).isEqualTo(SHIP_TO_ADDRESS);
-    assertThat(wrapper.order().getBillTo()).isEqualTo(BILL_TO_ADDRESS);
+    assertThat(wrapper.order().getMetadata().getCreatedByUser().getId()).isEqualTo("7a626480-284e-5b55-9cf2-db32f93956cf");
+    assertThat(wrapper.order().getMetadata().getCreatedByUser()).isEqualTo(johnDoe);
+    assertThat(wrapper.order().getMetadata().getCreatedByUser().getFullName()).isEqualTo("John Doe");
+    assertThat(wrapper.order().getShipTo().getId()).isEqualTo(SHIP_TO_UUID.toString());
+    assertThat(wrapper.order().getShipTo().getAddress()).isEqualTo(SHIP_TO_ADDRESS);
+    assertThat(wrapper.order().getBillTo().getId()).isEqualTo(BILL_TO_UUID.toString());
+    assertThat(wrapper.order().getBillTo().getAddress()).isEqualTo(BILL_TO_ADDRESS);
   }
 
   @Test
   void buildContext_shipToBillToNewlines_renderedAsBrTags() throws IOException {
-    when(configurationService.getAddressConfig(SHIP_TO_UUID))
-      .thenReturn("SLUB Dresden\nZellescher Weg 18\n01069 Dresden");
-    when(configurationService.getAddressConfig(BILL_TO_UUID))
-      .thenReturn("Accounts Payable\nPO Box 42\nSpringfield IL");
+    when(configurationService.getTenantAddress(SHIP_TO_UUID))
+      .thenReturn(tenantAddress(SHIP_TO_UUID, "SLUB Dresden\nZellescher Weg 18\n01069 Dresden"));
+    when(configurationService.getTenantAddress(BILL_TO_UUID))
+      .thenReturn(tenantAddress(BILL_TO_UUID, "Accounts Payable\nPO Box 42\nSpringfield IL"));
     var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
 
     OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
-    assertThat(ctx.getOrders().get(0).order().getShipTo())
+    assertThat(ctx.getOrders().get(0).order().getShipTo().getAddress())
       .isEqualTo("SLUB Dresden<br>Zellescher Weg 18<br>01069 Dresden");
-    assertThat(ctx.getOrders().get(0).order().getBillTo())
+    assertThat(ctx.getOrders().get(0).order().getBillTo().getAddress())
       .isEqualTo("Accounts Payable<br>PO Box 42<br>Springfield IL");
   }
 
   @Test
   void buildContext_shipToBillToNewlines_plainTextKeepsNewlines() throws IOException {
-    when(configurationService.getAddressConfig(SHIP_TO_UUID))
-      .thenReturn("SLUB Dresden\nZellescher Weg 18\n01069 Dresden");
+    when(configurationService.getTenantAddress(SHIP_TO_UUID))
+      .thenReturn(tenantAddress(SHIP_TO_UUID, "SLUB Dresden\nZellescher Weg 18\n01069 Dresden"));
     var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
 
     OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/plain");
 
-    assertThat(ctx.getOrders().get(0).order().getShipTo())
+    assertThat(ctx.getOrders().get(0).order().getShipTo().getAddress())
       .isEqualTo("SLUB Dresden\nZellescher Weg 18\n01069 Dresden");
   }
 
@@ -115,8 +122,8 @@ class OrderEmailContextMapperTest {
 
     OrderEmailContext ctx = mapper.buildContext(List.of(order), "text/html");
 
-    assertThat(ctx.getOrders().get(0).order().getShipTo()).isEmpty();
-    assertThat(ctx.getOrders().get(0).order().getBillTo()).isEmpty();
+    assertThat(ctx.getOrders().get(0).order().getShipTo().getAddress()).isEmpty();
+    assertThat(ctx.getOrders().get(0).order().getBillTo().getAddress()).isEmpty();
   }
 
   @Test
@@ -132,23 +139,26 @@ class OrderEmailContextMapperTest {
     OrderLineContext line = lines.get(0).orderLine();
     assertThat(line.getPoLineNumber()).isEqualTo("10000-1");
     assertThat(line.getTitle()).isEqualTo("Futures, biometrics and neuroscience research Luiz Moutinho, Mladen Sokele, editors");
+    assertThat(line.getPublisher()).isEqualTo("Palgrave Macmillan");
     assertThat(line.getPublicationDate()).isEqualTo("2021");
     assertThat(line.getEdition()).isEqualTo("2nd ed.");
+    assertThat(line.getRush()).isFalse();
     assertThat(line.getContributors()).hasSize(1);
     var contributor = line.getContributors().get(0);
     assertThat(contributor.getContributor()).isEqualTo("Moutinho, Luiz");
-    assertThat(contributor.getContributorNameType()).isEqualTo("2b94c631-fca9-4892-a730-03ee529ffe2a");
-    assertThat(contributor.getContributorNameTypeName()).isEqualTo("Personal name");
+    assertThat(contributor.getContributorNameType().getId()).isEqualTo("2b94c631-fca9-4892-a730-03ee529ffe2a");
+    assertThat(contributor.getContributorNameType().getName()).isEqualTo("Personal name");
     assertThat(line.getDetails().getProductIds()).hasSize(1);
     var productId = line.getDetails().getProductIds().get(0);
     assertThat(productId.getProductId()).isEqualTo("9783319643991");
     assertThat(productId.getQualifier()).isEqualTo("(paperback)");
-    assertThat(productId.getProductIdType()).isEqualTo("8261054f-be78-422d-bd51-4ed9f33c3422");
-    assertThat(productId.getProductIdTypeName()).isEqualTo("ISBN");
+    assertThat(productId.getProductIdType().getId()).isEqualTo("8261054f-be78-422d-bd51-4ed9f33c3422");
+    assertThat(productId.getProductIdType().getName()).isEqualTo("ISBN");
     assertThat(line.getCost().getListUnitPrice()).isEqualTo("2.0");
     assertThat(line.getCost().getCurrency()).isEqualTo("USD");
     assertThat(line.getCost().getQuantity()).isEqualTo(1);
     assertThat(line.getCost().getEstimatedPrice()).isEqualTo("1.8");
+    assertThat(line.getCost().getPoLineEstimatedPrice()).isEqualTo("1.8");
     assertThat(line.getVendorDetail().getInstructions()).isEqualTo("Handle with care");
   }
 
@@ -281,5 +291,12 @@ class OrderEmailContextMapperTest {
 
   private CompositePurchaseOrder loadOrder(String path) throws IOException {
     return objectMapper.readValue(getMockData(path), CompositePurchaseOrder.class);
+  }
+
+  private TenantAddress tenantAddress(UUID id, String address) {
+    var tenantAddress = new TenantAddress();
+    tenantAddress.setId(id);
+    tenantAddress.setAddress(address);
+    return tenantAddress;
   }
 }

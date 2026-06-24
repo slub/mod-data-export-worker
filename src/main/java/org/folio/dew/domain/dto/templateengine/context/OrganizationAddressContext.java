@@ -1,4 +1,4 @@
-package org.folio.dew.domain.dto.templateengine;
+package org.folio.dew.domain.dto.templateengine.context;
 
 import lombok.Builder;
 import lombok.Data;
