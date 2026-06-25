@@ -8,7 +8,6 @@ import org.folio.dew.batch.acquisitions.services.ContributorNameTypeService;
 import org.folio.dew.batch.acquisitions.services.IdentifierTypeService;
 import org.folio.dew.batch.acquisitions.services.OrganizationsService;
 import org.folio.dew.batch.acquisitions.services.UserService;
-import org.folio.dew.batch.acquisitions.utils.ExportUtils;
 import org.folio.dew.domain.dto.*;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
 import org.folio.dew.domain.dto.templateengine.context.ContributorContext;
@@ -120,7 +119,6 @@ public class OrderEmailContextMapper extends EmailContextMapper {
     return OrderContext.builder()
       .poNumber(StringUtils.defaultString(order.getPoNumber()))
       .orderType(Optional.ofNullable(order.getOrderType()).map(CompositePurchaseOrder.OrderTypeEnum::getValue).orElse(""))
-      .orderDate(StringUtils.defaultString(ExportUtils.getFormattedDate(order.getDateOrdered())))
       .metadata(mapOrderMetadata(order.getMetadata()))
       .shipTo(mapTenantAddress(order.getShipTo(), htmlOutput))
       .billTo(mapTenantAddress(order.getBillTo(), htmlOutput))
@@ -155,7 +153,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   private OrderLineContext mapOrderLine(PoLine line, boolean htmlOutput) {
     return OrderLineContext.builder()
       .poLineNumber(StringUtils.defaultString(line.getPoLineNumber()))
-      .title(StringUtils.defaultString(line.getTitleOrPackage()))
+      .titleOrPackage(StringUtils.defaultString(line.getTitleOrPackage()))
       .publisher(StringUtils.defaultString(line.getPublisher()))
       .publicationDate(StringUtils.defaultString(line.getPublicationDate()))
       .edition(StringUtils.defaultString(line.getEdition()))

@@ -10,7 +10,7 @@ import java.util.List;
 public class OrderLineContext {
 
   private String poLineNumber;
-  private String title;
+  private String titleOrPackage;
   private String publisher;
   private String publicationDate;
   private String edition;

@@ -8,11 +8,7 @@ import lombok.Data;
 public class UserContext {
 
   private String id;
-  private String username;
   private String firstName;
   private String lastName;
-  private String middleName;
-  private String preferredFirstName;
-  private String email;
   private String fullName;
 }

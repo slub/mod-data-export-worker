@@ -41,21 +41,14 @@ public class UserService {
     Personal personal = user.getPersonal();
     String firstName = personal != null ? StringUtils.defaultString(personal.getFirstName()) : "";
     String lastName = personal != null ? StringUtils.defaultString(personal.getLastName()) : "";
-    String middleName = personal != null ? StringUtils.defaultString(personal.getMiddleName()) : "";
-    String preferredFirstName = personal != null ? StringUtils.defaultString(personal.getPreferredFirstName()) : "";
-    String email = personal != null ? StringUtils.defaultString(personal.getEmail()) : "";
     String fullName = (firstName + " " + lastName).trim();
     if (StringUtils.isBlank(fullName)) {
       fullName = StringUtils.defaultString(user.getUsername());
     }
     return UserContext.builder()
       .id(StringUtils.defaultString(user.getId()))
-      .username(StringUtils.defaultString(user.getUsername()))
       .firstName(firstName)
       .lastName(lastName)
-      .middleName(middleName)
-      .preferredFirstName(preferredFirstName)
-      .email(email)
       .fullName(fullName)
       .build();
   }
@@ -63,12 +56,8 @@ public class UserService {
   private UserContext emptyUserContext() {
     return UserContext.builder()
       .id("")
-      .username("")
       .firstName("")
       .lastName("")
-      .middleName("")
-      .preferredFirstName("")
-      .email("")
       .fullName("")
       .build();
   }
