@@ -29,6 +29,9 @@ import org.folio.dew.domain.dto.templateengine.context.TypeContext;
 import org.folio.dew.domain.dto.templateengine.context.VendorDetailContext;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,6 +41,9 @@ import java.util.function.Predicate;
 @Component
 @RequiredArgsConstructor
 public class OrderEmailContextMapper extends EmailContextMapper {
+
+  private static final DateTimeFormatter CREATED_AT_FORMATTER =
+    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
   private final IdentifierTypeService identifierTypeService;
   private final ContributorNameTypeService contributorNameTypeService;
@@ -55,6 +61,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
           .toList()))
       .toList();
     return OrderEmailContext.builder()
+      .createdAt(CREATED_AT_FORMATTER.format(Instant.now()))
       .organization(mapOrganization(orders))
       .orders(orderWrappers)
       .build();
