@@ -18,5 +18,6 @@ public class OrderLineContext {
   private List<ContributorContext> contributors;
   private DetailsContext details;
   private CostContext cost;
+  private List<FundDistributionContext> fundDistribution;
   private VendorDetailContext vendorDetail;
 }

@@ -14,6 +14,7 @@ import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
 import org.folio.dew.domain.dto.templateengine.context.ContributorContext;
 import org.folio.dew.domain.dto.templateengine.context.CostContext;
 import org.folio.dew.domain.dto.templateengine.context.DetailsContext;
+import org.folio.dew.domain.dto.templateengine.context.FundDistributionContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderEmailContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderLineContext;
@@ -155,7 +156,23 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .contributors(mapContributors(line.getContributors()))
       .details(mapDetails(line.getDetails()))
       .cost(mapCost(line.getCost()))
+      .fundDistribution(mapFundDistribution(line.getFundDistribution()))
       .vendorDetail(mapVendorDetail(line.getVendorDetail(), htmlOutput))
+      .build();
+  }
+
+  private List<FundDistributionContext> mapFundDistribution(List<FundDistribution> fundDistribution) {
+    if (CollectionUtils.isEmpty(fundDistribution)) {
+      return List.of();
+    }
+    return fundDistribution.stream()
+      .map(this::mapFundDistribution)
+      .toList();
+  }
+
+  private FundDistributionContext mapFundDistribution(FundDistribution fundDistribution) {
+    return FundDistributionContext.builder()
+      .code(StringUtils.defaultString(fundDistribution.getCode()))
       .build();
   }
 

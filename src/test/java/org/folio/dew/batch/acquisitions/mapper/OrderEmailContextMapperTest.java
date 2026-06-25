@@ -159,6 +159,9 @@ class OrderEmailContextMapperTest {
     assertThat(line.getCost().getQuantity()).isEqualTo(1);
     assertThat(line.getCost().getEstimatedPrice()).isEqualTo("1.8");
     assertThat(line.getCost().getPoLineEstimatedPrice()).isEqualTo("1.8");
+    assertThat(line.getFundDistribution()).hasSize(1);
+    var fund = line.getFundDistribution().get(0);
+    assertThat(fund.getCode()).isEqualTo("USHIST");
     assertThat(line.getVendorDetail().getInstructions()).isEqualTo("Handle with care");
   }
 
