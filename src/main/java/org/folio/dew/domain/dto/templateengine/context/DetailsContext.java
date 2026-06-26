@@ -8,6 +8,5 @@ import java.util.List;
 @Data
 @Builder
 public class DetailsContext {
-
   private List<ProductIdContext> productIds;
 }

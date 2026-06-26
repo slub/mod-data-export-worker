@@ -6,7 +6,6 @@ import lombok.Data;
 @Data
 @Builder
 public class TenantAddressContext {
-
   private String id;
   private String address;
 }

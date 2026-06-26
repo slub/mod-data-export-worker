@@ -6,7 +6,6 @@ import lombok.Data;
 @Data
 @Builder
 public class OrderContext {
-
   private String poNumber;
   private String orderType;
   private OrderMetadataContext metadata;

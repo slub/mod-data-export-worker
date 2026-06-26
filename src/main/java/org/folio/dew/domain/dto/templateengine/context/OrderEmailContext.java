@@ -8,7 +8,6 @@ import java.util.List;
 @Data
 @Builder
 public class OrderEmailContext {
-
   private String createdAt;
   private OrganizationContext organization;
   private List<OrderWrapper> orders;

@@ -8,7 +8,6 @@ import java.util.List;
 @Data
 @Builder
 public class OrderLineContext {
-
   private String poLineNumber;
   private String titleOrPackage;
   private String publisher;

@@ -6,7 +6,6 @@ import lombok.Data;
 @Data
 @Builder
 public class OrganizationAddressContext {
-
   private String addressLine1;
   private String city;
   private String zipCode;

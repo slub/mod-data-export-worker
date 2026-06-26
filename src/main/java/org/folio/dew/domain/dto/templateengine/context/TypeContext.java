@@ -6,7 +6,6 @@ import lombok.Data;
 @Data
 @Builder
 public class TypeContext {
-
   private String id;
   private String name;
 }

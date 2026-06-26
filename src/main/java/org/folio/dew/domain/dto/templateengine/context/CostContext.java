@@ -6,7 +6,6 @@ import lombok.Data;
 @Data
 @Builder
 public class CostContext {
-
   private String listUnitPrice;
   private String listUnitPriceElectronic;
   private Integer quantityPhysical;

@@ -6,7 +6,6 @@ import lombok.Data;
 @Data
 @Builder
 public class UserContext {
-
   private String id;
   private String firstName;
   private String lastName;
