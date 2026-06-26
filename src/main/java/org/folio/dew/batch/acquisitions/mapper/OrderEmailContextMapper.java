@@ -30,20 +30,16 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 @Component
 @RequiredArgsConstructor
 public class OrderEmailContextMapper {
-
-  private static final DateTimeFormatter CREATED_AT_FORMATTER =
-    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
   private final IdentifierTypeService identifierTypeService;
   private final ContributorNameTypeService contributorNameTypeService;
@@ -60,7 +56,7 @@ public class OrderEmailContextMapper {
           .toList()))
       .toList();
     return OrderEmailContext.builder()
-      .createdAt(CREATED_AT_FORMATTER.format(Instant.now()))
+      .createdAt(Instant.now().toString())
       .organization(mapOrganization(orders))
       .orders(orderWrappers)
       .build();
@@ -158,20 +154,20 @@ public class OrderEmailContextMapper {
       .publicationDate(StringUtils.defaultString(line.getPublicationDate()))
       .edition(StringUtils.defaultString(line.getEdition()))
       .rush(Optional.ofNullable(line.getRush()).orElse(false))
-      .contributors(mapContributors(line.getContributors()))
+      .contributors(mapList(line.getContributors(), this::mapContributor))
       .details(mapDetails(line.getDetails()))
       .cost(mapCost(line.getCost()))
-      .fundDistribution(mapFundDistribution(line.getFundDistribution()))
+      .fundDistribution(mapList(line.getFundDistribution(), this::mapFundDistribution))
       .vendorDetail(mapVendorDetail(line.getVendorDetail()))
       .build();
   }
 
-  private List<FundDistributionContext> mapFundDistribution(List<FundDistribution> fundDistribution) {
-    if (CollectionUtils.isEmpty(fundDistribution)) {
+  private <S, T> List<T> mapList(List<S> source, Function<S, T> mapper) {
+    if (CollectionUtils.isEmpty(source)) {
       return List.of();
     }
-    return fundDistribution.stream()
-      .map(this::mapFundDistribution)
+    return source.stream()
+      .map(mapper)
       .toList();
   }
 
@@ -206,15 +202,6 @@ public class OrderEmailContextMapper {
       .build();
   }
 
-  private List<ContributorContext> mapContributors(List<Contributor> contributors) {
-    if (CollectionUtils.isEmpty(contributors)) {
-      return List.of();
-    }
-    return contributors.stream()
-      .map(this::mapContributor)
-      .toList();
-  }
-
   private ContributorContext mapContributor(Contributor contributor) {
     var contributorNameTypeId = StringUtils.defaultString(contributor.getContributorNameTypeId());
     return ContributorContext.builder()
@@ -228,17 +215,8 @@ public class OrderEmailContextMapper {
 
   private DetailsContext mapDetails(Details details) {
     return DetailsContext.builder()
-      .productIds(mapProductIds(details))
+      .productIds(mapList(details == null ? null : details.getProductIds(), this::mapProductId))
       .build();
-  }
-
-  private List<ProductIdContext> mapProductIds(Details details) {
-    if (details == null || CollectionUtils.isEmpty(details.getProductIds())) {
-      return List.of();
-    }
-    return details.getProductIds().stream()
-      .map(this::mapProductId)
-      .toList();
   }
 
   private ProductIdContext mapProductId(ProductIdentifier productId) {
