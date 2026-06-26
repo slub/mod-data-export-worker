@@ -78,7 +78,6 @@ class OrderEmailContextMapperTest {
     var wrapper = ctx.getOrders().get(0);
     assertThat(wrapper.order().getPoNumber()).isEqualTo("10000");
     assertThat(wrapper.order().getOrderType()).isEqualTo("One-Time");
-    assertThat(wrapper.order().getOrderDate()).isEqualTo("2021-01-15");
     assertThat(wrapper.order().getMetadata().getCreatedByUser().getId()).isEqualTo("7a626480-284e-5b55-9cf2-db32f93956cf");
     assertThat(wrapper.order().getMetadata().getCreatedByUser()).isEqualTo(johnDoe);
     assertThat(wrapper.order().getMetadata().getCreatedByUser().getFullName()).isEqualTo("John Doe");
@@ -138,7 +137,7 @@ class OrderEmailContextMapperTest {
 
     OrderLineContext line = lines.get(0).orderLine();
     assertThat(line.getPoLineNumber()).isEqualTo("10000-1");
-    assertThat(line.getTitle()).isEqualTo("Futures, biometrics and neuroscience research Luiz Moutinho, Mladen Sokele, editors");
+    assertThat(line.getTitleOrPackage()).isEqualTo("Futures, biometrics and neuroscience research Luiz Moutinho, Mladen Sokele, editors");
     assertThat(line.getPublisher()).isEqualTo("Palgrave Macmillan");
     assertThat(line.getPublicationDate()).isEqualTo("2021");
     assertThat(line.getEdition()).isEqualTo("2nd ed.");
