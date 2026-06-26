@@ -11,7 +11,6 @@ public class CostContext {
   private Integer quantityPhysical;
   private Integer quantityElectronic;
   private Integer quantity;
-  private String estimatedPrice;
   private String poLineEstimatedPrice;
   private String currency;
 }

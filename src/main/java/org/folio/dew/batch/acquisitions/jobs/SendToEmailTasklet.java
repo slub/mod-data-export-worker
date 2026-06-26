@@ -41,6 +41,7 @@ public class SendToEmailTasklet implements Tasklet {
 
   private static final String EMAIL_ERROR_MESSAGE = "Failed to send the email";
   private static final String TEMPLATE_ENGINE_ERROR_MESSAGE = "Failed to retrieve the email template";
+  private static final String EMAIL_NOT_CONFIGURED_ERROR_MESSAGE = "Failed because no email configuration has been provided";
   private static final String TEMPLATE_NOT_CONFIGURED_ERROR_MESSAGE = "Failed because no email template has been configured";
 
   private final ObjectMapper ediObjectMapper;
@@ -62,12 +63,18 @@ public class SendToEmailTasklet implements Tasklet {
     var ordersJson = (String) ExecutionContextUtils.getExecutionVariable(stepExecution, ACQ_EXPORT_ORDERS);
     var orders = ediObjectMapper.readValue(ordersJson, new TypeReference<List<CompositePurchaseOrder>>() {});
 
+    var ediEmail = Optional.ofNullable(exportConfig.getEdiEmail())
+      .orElseThrow(() -> {
+        log.error(EMAIL_NOT_CONFIGURED_ERROR_MESSAGE);
+        return new EdifactException(EMAIL_NOT_CONFIGURED_ERROR_MESSAGE);
+      });
+
     var emailEntity = new EmailEntity();
     emailEntity.setNotificationId(jobId);
-    emailEntity.setFrom(exportConfig.getEdiEmail().getEmailFrom());
-    emailEntity.setTo(exportConfig.getEdiEmail().getEmailTo());
+    emailEntity.setFrom(ediEmail.getEmailFrom());
+    emailEntity.setTo(ediEmail.getEmailTo());
 
-    var templateResult = resolveTemplate(exportConfig, orders);
+    var templateResult = resolveTemplate(ediEmail, orders);
     emailEntity.setHeader(templateResult[0]);
     emailEntity.setBody(templateResult[1]);
     emailEntity.setOutputFormat(templateResult[2]);
@@ -78,9 +85,8 @@ public class SendToEmailTasklet implements Tasklet {
     return RepeatStatus.FINISHED;
   }
 
-  private String[] resolveTemplate(VendorEdiOrdersExportConfig exportConfig, List<CompositePurchaseOrder> orders) {
-    UUID templateId = Optional.ofNullable(exportConfig.getEdiEmail())
-      .map(EdiEmail::getEmailTemplate)
+  private String[] resolveTemplate(EdiEmail ediEmail, List<CompositePurchaseOrder> orders) {
+    UUID templateId = Optional.ofNullable(ediEmail.getEmailTemplate())
       .orElseThrow(() -> {
         log.error(TEMPLATE_NOT_CONFIGURED_ERROR_MESSAGE);
         return new EdifactException(TEMPLATE_NOT_CONFIGURED_ERROR_MESSAGE);

@@ -144,7 +144,6 @@ class OrderEmailContextMapperTest {
     assertThat(line.getCost().getListUnitPrice()).isEqualTo("2.0");
     assertThat(line.getCost().getCurrency()).isEqualTo("USD");
     assertThat(line.getCost().getQuantity()).isEqualTo(1);
-    assertThat(line.getCost().getEstimatedPrice()).isEqualTo("1.8");
     assertThat(line.getCost().getPoLineEstimatedPrice()).isEqualTo("1.8");
     assertThat(line.getFundDistribution()).hasSize(1);
     var fund = line.getFundDistribution().get(0);
