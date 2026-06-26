@@ -1,6 +1,7 @@
 package org.folio.dew.batch.acquisitions.mapper;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.folio.dew.batch.acquisitions.services.ConfigurationService;
@@ -9,6 +10,7 @@ import org.folio.dew.batch.acquisitions.services.IdentifierTypeService;
 import org.folio.dew.batch.acquisitions.services.OrganizationsService;
 import org.folio.dew.batch.acquisitions.services.UserService;
 import org.folio.dew.domain.dto.*;
+import org.folio.dew.domain.dto.acquisitions.edifact.Organization;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
 import org.folio.dew.domain.dto.templateengine.context.ContributorContext;
 import org.folio.dew.domain.dto.templateengine.context.CostContext;
@@ -39,6 +41,7 @@ import java.util.function.Predicate;
 
 @Component
 @RequiredArgsConstructor
+@Log4j2
 public class OrderEmailContextMapper {
 
   private final IdentifierTypeService identifierTypeService;
@@ -67,12 +70,21 @@ public class OrderEmailContextMapper {
       .map(CompositePurchaseOrder::getVendor)
       .filter(Objects::nonNull)
       .findFirst()
-      .map(vendorId -> organizationsService.getOrganizationById(vendorId.toString()))
+      .map(this::resolveOrganization)
       .map(org -> OrganizationContext.builder()
         .name(StringUtils.defaultString(org.getName()))
         .primaryAddress(pickPrimaryAddress(org.getAddresses()))
         .build())
       .orElseGet(this::emptyOrganizationContext);
+  }
+
+  private Organization resolveOrganization(UUID vendorId) {
+    try {
+      return organizationsService.getOrganizationById(vendorId.toString());
+    } catch (Exception e) {
+      log.warn("resolveOrganization:: Cannot resolve vendor organization '{}' for email context", vendorId, e);
+      return null;
+    }
   }
 
   private OrganizationContext emptyOrganizationContext() {
@@ -226,8 +238,17 @@ public class OrderEmailContextMapper {
       .qualifier(StringUtils.defaultString(productId.getQualifier()))
       .productIdType(TypeContext.builder()
         .id(productIdTypeId)
-        .name(StringUtils.isBlank(productIdTypeId) ? "" : StringUtils.defaultString(identifierTypeService.getIdentifierTypeName(productIdTypeId)))
+        .name(StringUtils.isBlank(productIdTypeId) ? "" : resolveIdentifierTypeName(productIdTypeId))
         .build())
       .build();
+  }
+
+  private String resolveIdentifierTypeName(String productIdTypeId) {
+    try {
+      return StringUtils.defaultString(identifierTypeService.getIdentifierTypeName(productIdTypeId));
+    } catch (Exception e) {
+      log.warn("resolveIdentifierTypeName:: Cannot resolve identifier type '{}' for email context", productIdTypeId, e);
+      return "";
+    }
   }
 }

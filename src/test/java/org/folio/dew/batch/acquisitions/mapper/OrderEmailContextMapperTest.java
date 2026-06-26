@@ -268,6 +268,33 @@ class OrderEmailContextMapperTest {
     assertThat(line.getVendorDetail().getInstructions()).isEmpty();
   }
 
+  @Test
+  void buildContext_organizationLookupThrows_returnsEmptyOrganization() throws IOException {
+    when(organizationsService.getOrganizationById(VENDOR_UUID)).thenThrow(new RuntimeException("boom"));
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+
+    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+
+    assertThat(ctx.getOrganization().getName()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getAddressLine1()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getCity()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getZipCode()).isEmpty();
+    assertThat(ctx.getOrganization().getPrimaryAddress().getCountry()).isEmpty();
+  }
+
+  @Test
+  void buildContext_identifierTypeLookupThrows_returnsEmptyName() throws IOException {
+    when(identifierTypeService.getIdentifierTypeName(anyString())).thenThrow(new RuntimeException("boom"));
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+
+    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+
+    var productIdType = ctx.getOrders().get(0).orderLines().get(0).orderLine()
+      .getDetails().getProductIds().get(0).getProductIdType();
+    assertThat(productIdType.getName()).isEmpty();
+    assertThat(productIdType.getId()).isEqualTo("8261054f-be78-422d-bd51-4ed9f33c3422");
+  }
+
   private CompositePurchaseOrder loadOrder(String path) throws IOException {
     return objectMapper.readValue(getMockData(path), CompositePurchaseOrder.class);
   }
