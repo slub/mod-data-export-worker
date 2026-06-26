@@ -89,7 +89,7 @@ public class SendToEmailTasklet implements Tasklet {
     var request = TemplateProcessingRequest.builder()
       .templateId(templateId)
       .build();
-    request.setContext(orderEmailContextMapper.buildContext(orders, request.getOutputFormat()));
+    request.setContext(orderEmailContextMapper.buildContext(orders));
 
     try {
       TemplateProcessingResponse response = templateEngineClient.processTemplate(request);

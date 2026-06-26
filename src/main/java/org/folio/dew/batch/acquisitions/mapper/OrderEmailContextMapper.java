@@ -28,6 +28,7 @@ import org.folio.dew.domain.dto.templateengine.context.TypeContext;
 import org.folio.dew.domain.dto.templateengine.context.VendorDetailContext;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -39,7 +40,7 @@ import java.util.function.Predicate;
 
 @Component
 @RequiredArgsConstructor
-public class OrderEmailContextMapper extends EmailContextMapper {
+public class OrderEmailContextMapper {
 
   private static final DateTimeFormatter CREATED_AT_FORMATTER =
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
@@ -50,13 +51,12 @@ public class OrderEmailContextMapper extends EmailContextMapper {
   private final UserService userService;
   private final OrganizationsService organizationsService;
 
-  public OrderEmailContext buildContext(List<CompositePurchaseOrder> orders, String outputFormat) {
-    boolean htmlOutput = isHtmlOutput(outputFormat);
+  public OrderEmailContext buildContext(List<CompositePurchaseOrder> orders) {
     var orderWrappers = orders.stream()
       .map(order -> new OrderWrapper(
-        mapOrder(order, htmlOutput),
+        mapOrder(order),
         order.getPoLines().stream()
-          .map(line -> new OrderLineWrapper(mapOrderLine(line, htmlOutput)))
+          .map(line -> new OrderLineWrapper(mapOrderLine(line)))
           .toList()))
       .toList();
     return OrderEmailContext.builder()
@@ -115,13 +115,13 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .findFirst();
   }
 
-  private OrderContext mapOrder(CompositePurchaseOrder order, boolean htmlOutput) {
+  private OrderContext mapOrder(CompositePurchaseOrder order) {
     return OrderContext.builder()
       .poNumber(StringUtils.defaultString(order.getPoNumber()))
       .orderType(Optional.ofNullable(order.getOrderType()).map(CompositePurchaseOrder.OrderTypeEnum::getValue).orElse(""))
       .metadata(mapOrderMetadata(order.getMetadata()))
-      .shipTo(mapTenantAddress(order.getShipTo(), htmlOutput))
-      .billTo(mapTenantAddress(order.getBillTo(), htmlOutput))
+      .shipTo(mapTenantAddress(order.getShipTo()))
+      .billTo(mapTenantAddress(order.getBillTo()))
       .build();
   }
 
@@ -129,14 +129,14 @@ public class OrderEmailContextMapper extends EmailContextMapper {
     return Optional.ofNullable(id).map(UUID::toString).orElse("");
   }
 
-  private TenantAddressContext mapTenantAddress(UUID addressId, boolean htmlOutput) {
+  private TenantAddressContext mapTenantAddress(UUID addressId) {
     var tenantAddress = configurationService.getTenantAddress(addressId);
     if (tenantAddress == null) {
       return TenantAddressContext.builder().id("").address("").build();
     }
     return TenantAddressContext.builder()
       .id(toUuidString(tenantAddress.getId()))
-      .address(toLineBreaks(StringUtils.defaultString(tenantAddress.getAddress()), htmlOutput))
+      .address(StringUtils.defaultString(tenantAddress.getAddress()))
       .build();
   }
 
@@ -150,7 +150,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .build();
   }
 
-  private OrderLineContext mapOrderLine(PoLine line, boolean htmlOutput) {
+  private OrderLineContext mapOrderLine(PoLine line) {
     return OrderLineContext.builder()
       .poLineNumber(StringUtils.defaultString(line.getPoLineNumber()))
       .titleOrPackage(StringUtils.defaultString(line.getTitleOrPackage()))
@@ -162,7 +162,7 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .details(mapDetails(line.getDetails()))
       .cost(mapCost(line.getCost()))
       .fundDistribution(mapFundDistribution(line.getFundDistribution()))
-      .vendorDetail(mapVendorDetail(line.getVendorDetail(), htmlOutput))
+      .vendorDetail(mapVendorDetail(line.getVendorDetail()))
       .build();
   }
 
@@ -196,9 +196,13 @@ public class OrderEmailContextMapper extends EmailContextMapper {
       .build();
   }
 
-  private VendorDetailContext mapVendorDetail(VendorDetail vendorDetail, boolean htmlOutput) {
+  private String formatDecimal(BigDecimal value) {
+    return value != null ? value.toPlainString() : "";
+  }
+
+  private VendorDetailContext mapVendorDetail(VendorDetail vendorDetail) {
     return VendorDetailContext.builder()
-      .instructions(toLineBreaks(Optional.ofNullable(vendorDetail).map(VendorDetail::getInstructions).orElse(""), htmlOutput))
+      .instructions(Optional.ofNullable(vendorDetail).map(VendorDetail::getInstructions).orElse(""))
       .build();
   }
 
