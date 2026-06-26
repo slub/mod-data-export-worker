@@ -14,8 +14,13 @@ import lombok.extern.log4j.Log4j2;
 public class OrganizationsService {
   private final OrganizationsClient organizationsClient;
 
-  @Cacheable(cacheNames = "organizations")
+  @Cacheable(cacheNames = "organizations", unless = "#result == null")
   public Organization getOrganizationById(String id) {
-    return organizationsClient.getOrganizationById(id);
+    try {
+      return organizationsClient.getOrganizationById(id);
+    } catch (Exception e) {
+      log.warn("getOrganizationById:: Cannot find organization by id: '{}'", id, e);
+      return null;
+    }
   }
 }

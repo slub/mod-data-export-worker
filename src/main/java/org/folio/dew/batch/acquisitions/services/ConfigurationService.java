@@ -30,7 +30,7 @@ public class ConfigurationService {
       .orElse("");
   }
 
-  @Cacheable(cacheNames = "tenantAddress")
+  @Cacheable(cacheNames = "tenantAddress", unless = "#result == null")
   public TenantAddress getTenantAddress(UUID shipToConfigId) {
     if (shipToConfigId == null) {
       logger.warn("getTenantAddress:: shipToConfigId is null");
