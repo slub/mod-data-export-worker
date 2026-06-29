@@ -197,7 +197,6 @@ public class OrderEmailContextMapper {
       .listUnitPriceElectronic(formatDecimal(Optional.ofNullable(cost).map(Cost::getListUnitPriceElectronic).orElse(null)))
       .quantityPhysical(quantityPhysical)
       .quantityElectronic(quantityElectronic)
-      .quantity(quantityPhysical + quantityElectronic)
       .poLineEstimatedPrice(formatDecimal(Optional.ofNullable(cost).map(Cost::getPoLineEstimatedPrice).orElse(null)))
       .currency(Optional.ofNullable(cost).map(Cost::getCurrency).orElse(""))
       .build();

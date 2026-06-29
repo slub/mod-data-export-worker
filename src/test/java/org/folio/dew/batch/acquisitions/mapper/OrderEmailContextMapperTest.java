@@ -143,7 +143,6 @@ class OrderEmailContextMapperTest {
     assertThat(productId.getProductIdType().getName()).isEqualTo("ISBN");
     assertThat(line.getCost().getListUnitPrice()).isEqualTo("2.0");
     assertThat(line.getCost().getCurrency()).isEqualTo("USD");
-    assertThat(line.getCost().getQuantity()).isEqualTo(1);
     assertThat(line.getCost().getPoLineEstimatedPrice()).isEqualTo("1.8");
     assertThat(line.getFundDistribution()).hasSize(1);
     var fund = line.getFundDistribution().get(0);
@@ -242,7 +241,6 @@ class OrderEmailContextMapperTest {
     OrderLineContext line = ctx.getOrders().get(0).orderLines().get(0).orderLine();
     assertThat(line.getCost().getListUnitPrice()).isEmpty();
     assertThat(line.getCost().getCurrency()).isEmpty();
-    assertThat(line.getCost().getQuantity()).isZero();
   }
 
   @Test

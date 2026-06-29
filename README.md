@@ -119,12 +119,11 @@ OrderEmailContext
             │   ├── listUnitPriceElectronic
             │   ├── quantityPhysical
             │   ├── quantityElectronic
-            │   ├── quantity
             │   ├── estimatedPrice
             │   ├── poLineEstimatedPrice
             │   └── currency
             ├── fundDistribution[]           # multiple entries
-            │   └── code                     # fund distribution code
+            │   └── code                     # code taken as-is from the PO line; fundId is not resolved
             └── vendorDetail 
                 └── instructions             # vendor instructions
 ```
@@ -202,7 +201,6 @@ OrderEmailContext
               "listUnitPriceElectronic": "0.00",
               "quantityPhysical": 2,
               "quantityElectronic": 0,
-              "quantity": 2,
               "estimatedPrice": "99.98",
               "poLineEstimatedPrice": "99.98",
               "currency": "USD"

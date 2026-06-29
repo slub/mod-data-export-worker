@@ -10,7 +10,6 @@ public class CostContext {
   private String listUnitPriceElectronic;
   private Integer quantityPhysical;
   private Integer quantityElectronic;
-  private Integer quantity;
   private String poLineEstimatedPrice;
   private String currency;
 }
