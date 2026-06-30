@@ -299,6 +299,19 @@ class OrderEmailContextMapperTest {
     assertThat(productIdType.getId()).isEqualTo("8261054f-be78-422d-bd51-4ed9f33c3422");
   }
 
+  @Test
+  void buildContext_contributorNameTypeLookupThrows_returnsEmptyName() throws IOException {
+    when(contributorNameTypeService.getContributorNameTypeName(anyString())).thenThrow(new RuntimeException("boom"));
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+
+    OrderEmailContext ctx = mapper.buildContext(List.of(order));
+
+    var contributorNameType = ctx.getOrders().get(0).orderLines().get(0).orderLine()
+      .getContributors().get(0).getContributorNameType();
+    assertThat(contributorNameType.getName()).isEmpty();
+    assertThat(contributorNameType.getId()).isEqualTo("2b94c631-fca9-4892-a730-03ee529ffe2a");
+  }
+
   private CompositePurchaseOrder loadOrder(String path) throws IOException {
     return objectMapper.readValue(getMockData(path), CompositePurchaseOrder.class);
   }

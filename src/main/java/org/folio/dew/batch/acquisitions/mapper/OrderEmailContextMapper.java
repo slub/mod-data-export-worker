@@ -220,7 +220,7 @@ public class OrderEmailContextMapper {
       .contributor(StringUtils.defaultString(contributor.getContributor()))
       .contributorNameType(TypeContext.builder()
         .id(contributorNameTypeId)
-        .name(StringUtils.isBlank(contributorNameTypeId) ? "" : StringUtils.defaultString(contributorNameTypeService.getContributorNameTypeName(contributorNameTypeId)))
+        .name(StringUtils.isBlank(contributorNameTypeId) ? "" : resolveContributorNameTypeName(contributorNameTypeId))
         .build())
       .build();
   }
@@ -248,6 +248,15 @@ public class OrderEmailContextMapper {
       return StringUtils.defaultString(identifierTypeService.getIdentifierTypeName(productIdTypeId));
     } catch (Exception e) {
       log.warn("resolveIdentifierTypeName:: Cannot resolve identifier type '{}' for email context", productIdTypeId, e);
+      return "";
+    }
+  }
+
+  private String resolveContributorNameTypeName(String contributorNameTypeId) {
+    try {
+      return StringUtils.defaultString(contributorNameTypeService.getContributorNameTypeName(contributorNameTypeId));
+    } catch (Exception e) {
+      log.warn("resolveContributorNameTypeName:: Cannot resolve contributor name type '{}' for email context", contributorNameTypeId, e);
       return "";
     }
   }
