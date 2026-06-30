@@ -119,7 +119,6 @@ OrderEmailContext
             │   ├── listUnitPriceElectronic
             │   ├── quantityPhysical
             │   ├── quantityElectronic
-            │   ├── estimatedPrice
             │   ├── poLineEstimatedPrice
             │   └── currency
             ├── fundDistribution[]           # multiple entries
@@ -201,7 +200,6 @@ OrderEmailContext
               "listUnitPriceElectronic": "0.00",
               "quantityPhysical": 2,
               "quantityElectronic": 0,
-              "estimatedPrice": "99.98",
               "poLineEstimatedPrice": "99.98",
               "currency": "USD"
             },

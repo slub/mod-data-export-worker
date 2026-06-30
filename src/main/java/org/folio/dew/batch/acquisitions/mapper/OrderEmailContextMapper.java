@@ -179,6 +179,7 @@ public class OrderEmailContextMapper {
       return List.of();
     }
     return source.stream()
+      .filter(Objects::nonNull)
       .map(mapper)
       .toList();
   }
