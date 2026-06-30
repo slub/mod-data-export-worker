@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -59,7 +60,7 @@ public class OrderEmailContextMapper {
           .toList()))
       .toList();
     return OrderEmailContext.builder()
-      .createdAt(Instant.now().toString())
+      .createdAt(Instant.now().truncatedTo(ChronoUnit.MILLIS).toString())
       .organization(mapOrganization(orders))
       .orders(orderWrappers)
       .build();

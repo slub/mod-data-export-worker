@@ -170,6 +170,13 @@ class OrderEmailContextMapperTest {
   }
 
   @Test
+  void buildContext_setsCreatedAt() {
+    OrderEmailContext ctx = mapper.buildContext(List.of());
+
+    assertThat(ctx.getCreatedAt()).matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z");
+  }
+
+  @Test
   void buildContext_mapsOrganizationFields() throws IOException {
     var org = new Organization();
     org.setName("Acme Books");
