@@ -1,6 +1,7 @@
 package org.folio.dew.batch.acquisitions.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import java.util.LinkedHashMap;
@@ -12,6 +13,7 @@ import org.folio.dew.domain.dto.acquisitions.customfields.SelectField;
 import org.folio.dew.domain.dto.acquisitions.customfields.SelectFieldOption;
 import org.folio.dew.domain.dto.acquisitions.customfields.SelectFieldOptions;
 import org.folio.dew.domain.dto.templateengine.CustomFieldContext;
+import org.folio.dew.domain.dto.templateengine.CustomFieldOptionValue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -35,7 +37,17 @@ class CustomFieldsServiceTest {
   }
 
   @Test
-  void resolve_singleSelect_resolvesOptionLabelAsScalarValue() {
+  void resolve_returnsUnmodifiableMap() {
+    when(definitionService.getDefinitionsByRefId(ENTITY_TYPE)).thenReturn(Map.of(
+      "ref", textType("ref", "Vendor ref", "TEXTBOX_SHORT")));
+
+    var result = service.resolve(Map.of("ref", "X-9912"), ENTITY_TYPE, true);
+
+    assertThatThrownBy(() -> result.put("other", null)).isInstanceOf(UnsupportedOperationException.class);
+  }
+
+  @Test
+  void resolve_singleSelect_resolvesOptionAsIdValueObjectUnderValue() {
     when(definitionService.getDefinitionsByRefId(ENTITY_TYPE)).thenReturn(Map.of(
       "area", select("area", "Area", false, option("opt_1", "History"), option("opt_2", "Art"))));
 
@@ -43,8 +55,12 @@ class CustomFieldsServiceTest {
 
     var ctx = result.get("area");
     assertThat(ctx.getName()).isEqualTo("Area");
-    assertThat(ctx.getValue()).isEqualTo("Art");
+    assertThat(ctx.getType()).isEqualTo("SINGLE_SELECT_DROPDOWN");
     assertThat(ctx.getValues()).isNull();
+    assertThat(ctx.getValue()).isInstanceOf(CustomFieldOptionValue.class);
+    var value = (CustomFieldOptionValue) ctx.getValue();
+    assertThat(value.getId()).isEqualTo("opt_2");
+    assertThat(value.getLabel()).isEqualTo("Art");
   }
 
   @Test
@@ -55,12 +71,15 @@ class CustomFieldsServiceTest {
     var result = service.resolve(Map.of("subjects", List.of("opt_1", "opt_3")), ENTITY_TYPE, true);
 
     var ctx = result.get("subjects");
+    assertThat(ctx.getType()).isEqualTo("MULTI_SELECT_DROPDOWN");
     assertThat(ctx.getValue()).isNull();
     assertThat(ctx.getValues()).hasSize(2);
-    assertThat(ctx.getValues().get(0).getId()).isEqualTo("opt_1");
-    assertThat(ctx.getValues().get(0).getValue()).isEqualTo("History");
-    assertThat(ctx.getValues().get(1).getId()).isEqualTo("opt_3");
-    assertThat(ctx.getValues().get(1).getValue()).isEqualTo("Art");
+    var first = (CustomFieldOptionValue) ctx.getValues().get(0);
+    var second = (CustomFieldOptionValue) ctx.getValues().get(1);
+    assertThat(first.getId()).isEqualTo("opt_1");
+    assertThat(first.getLabel()).isEqualTo("History");
+    assertThat(second.getId()).isEqualTo("opt_3");
+    assertThat(second.getLabel()).isEqualTo("Art");
   }
 
   @Test
@@ -70,7 +89,53 @@ class CustomFieldsServiceTest {
 
     var result = service.resolve(Map.of("area", "opt_9"), ENTITY_TYPE, true);
 
-    assertThat(result.get("area").getValue()).isEqualTo("opt_9");
+    var value = (CustomFieldOptionValue) result.get("area").getValue();
+    assertThat(value.getId()).isEqualTo("opt_9");
+    assertThat(value.getLabel()).isEqualTo("opt_9");
+  }
+
+  @Test
+  void resolve_repeatableSingleSelect_resolvesEachOptionAsIdValue() {
+    when(definitionService.getDefinitionsByRefId(ENTITY_TYPE)).thenReturn(Map.of(
+      "tags", select("tags", "Tags", false, option("opt_1", "History"), option("opt_2", "Art"))));
+
+    var result = service.resolve(Map.of("tags", List.of("opt_1", "opt_2")), ENTITY_TYPE, true);
+
+    var ctx = result.get("tags");
+    assertThat(ctx.getType()).isEqualTo("SINGLE_SELECT_DROPDOWN");
+    assertThat(ctx.getValue()).isNull();
+    assertThat(ctx.getValues()).hasSize(2);
+    var first = (CustomFieldOptionValue) ctx.getValues().get(0);
+    var second = (CustomFieldOptionValue) ctx.getValues().get(1);
+    assertThat(first.getId()).isEqualTo("opt_1");
+    assertThat(first.getLabel()).isEqualTo("History");
+    assertThat(second.getId()).isEqualTo("opt_2");
+    assertThat(second.getLabel()).isEqualTo("Art");
+  }
+
+  @Test
+  void resolve_emptyMultiSelectList_yieldsEmptyValues() {
+    when(definitionService.getDefinitionsByRefId(ENTITY_TYPE)).thenReturn(Map.of(
+      "subjects", select("subjects", "Subject", true, option("opt_1", "History"))));
+
+    var result = service.resolve(Map.of("subjects", List.of()), ENTITY_TYPE, true);
+
+    var ctx = result.get("subjects");
+    assertThat(ctx.getValue()).isNull();
+    assertThat(ctx.getValues()).isEmpty();
+  }
+
+  @Test
+  void resolve_nonSelectField_populatesType() {
+    when(definitionService.getDefinitionsByRefId(ENTITY_TYPE)).thenReturn(Map.of(
+      "ref", textType("ref", "Vendor ref", "TEXTBOX_SHORT")));
+
+    var result = service.resolve(Map.of("ref", "X-9912"), ENTITY_TYPE, true);
+
+    var ctx = result.get("ref");
+    assertThat(ctx.getType()).isEqualTo("TEXTBOX_SHORT");
+    assertThat(ctx.getValue()).isEqualTo("X-9912");
+    assertThat(ctx.getValues()).isNull();
   }
 
   @Test
@@ -108,17 +173,14 @@ class CustomFieldsServiceTest {
   }
 
   @Test
-  void resolve_repeatableText_returnsValuesWithoutId() {
+  void resolve_repeatableText_returnsPlainStrings() {
     when(definitionService.getDefinitionsByRefId(ENTITY_TYPE)).thenReturn(Map.of(
       "refs", textType("refs", "Vendor refs", "TEXTBOX_SHORT")));
 
     var result = service.resolve(Map.of("refs", List.of("X-9912", "Y-4488")), ENTITY_TYPE, true);
 
     var values = result.get("refs").getValues();
-    assertThat(values).hasSize(2);
-    assertThat(values.get(0).getId()).isNull();
-    assertThat(values.get(0).getValue()).isEqualTo("X-9912");
-    assertThat(values.get(1).getValue()).isEqualTo("Y-4488");
+    assertThat(values).containsExactly("X-9912", "Y-4488");
   }
 
   @Test

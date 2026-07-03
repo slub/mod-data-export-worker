@@ -1,5 +1,6 @@
 package org.folio.dew.batch.acquisitions.services;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,7 +15,7 @@ import org.folio.dew.domain.dto.acquisitions.customfields.SelectField;
 import org.folio.dew.domain.dto.acquisitions.customfields.SelectFieldOption;
 import org.folio.dew.domain.dto.acquisitions.customfields.SelectFieldOptions;
 import org.folio.dew.domain.dto.templateengine.CustomFieldContext;
-import org.folio.dew.domain.dto.templateengine.CustomFieldValue;
+import org.folio.dew.domain.dto.templateengine.CustomFieldOptionValue;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -43,18 +44,20 @@ public class CustomFieldsService {
       if (rawValue == null || definition == null || Boolean.FALSE.equals(definition.getVisible())) {
         return;
       }
-      var builder = CustomFieldContext.builder().name(definition.getName());
+      var builder = CustomFieldContext.builder()
+        .name(definition.getName())
+        .type(definition.getType());
       if (rawValue instanceof List<?> list) {
         builder.values(list.stream()
           .filter(Objects::nonNull)
-          .map(element -> toCustomFieldValue(definition, element, htmlOutput))
+          .map(element -> toListElement(definition, element, htmlOutput))
           .toList());
       } else {
         builder.value(toScalar(definition, rawValue, htmlOutput));
       }
       result.put(refId, builder.build());
     });
-    return result;
+    return Collections.unmodifiableMap(result);
   }
 
   private Object toScalar(CustomField definition, Object rawValue, boolean htmlOutput) {
@@ -62,22 +65,24 @@ public class CustomFieldsService {
       return rawValue; // keep the boolean as-is
     }
     if (isSelect(definition)) {
-      return resolveOptionLabel(definition, String.valueOf(rawValue));
+      return toSelectValue(definition, rawValue); // single-select: {id, label}
     }
-    String text = String.valueOf(rawValue);
-    return TYPE_TEXTBOX_LONG.equals(definition.getType()) ? ExportUtils.toLineBreaks(text, htmlOutput) : text;
+    return toText(definition, rawValue, htmlOutput);
   }
 
-  private CustomFieldValue toCustomFieldValue(CustomField definition, Object element, boolean htmlOutput) {
-    if (isSelect(definition)) {
-      String id = String.valueOf(element);
-      return CustomFieldValue.builder().id(id).value(resolveOptionLabel(definition, id)).build();
-    }
+  /** List elements: selects become {id, label}; repeatable non-select (e.g. text) stay plain strings. */
+  private Object toListElement(CustomField definition, Object element, boolean htmlOutput) {
+    return isSelect(definition) ? toSelectValue(definition, element) : toText(definition, element, htmlOutput);
+  }
+
+  private CustomFieldOptionValue toSelectValue(CustomField definition, Object element) {
+    String id = String.valueOf(element);
+    return CustomFieldOptionValue.builder().id(id).label(resolveOptionLabel(definition, id)).build();
+  }
+
+  private String toText(CustomField definition, Object element, boolean htmlOutput) {
     String text = String.valueOf(element);
-    if (TYPE_TEXTBOX_LONG.equals(definition.getType())) {
-      text = ExportUtils.toLineBreaks(text, htmlOutput);
-    }
-    return CustomFieldValue.builder().value(text).build();
+    return TYPE_TEXTBOX_LONG.equals(definition.getType()) ? ExportUtils.toLineBreaks(text, htmlOutput) : text;
   }
 
   private boolean isSelect(CustomField definition) {
