@@ -12,13 +12,18 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.folio.dew.batch.acquisitions.mapper.ExportResourceMapper;
 import org.folio.dew.batch.acquisitions.services.OrdersService;
 import org.folio.dew.batch.acquisitions.services.OrganizationsService;
 import org.folio.dew.domain.dto.CompositePurchaseOrder;
+import org.folio.dew.domain.dto.EdiConfig;
 import org.folio.dew.domain.dto.Piece;
+import org.folio.dew.domain.dto.PoLine;
 import org.folio.dew.domain.dto.VendorEdiOrdersExportConfig;
 import org.folio.dew.domain.dto.acquisitions.edifact.ExportHolder;
 import org.folio.dew.error.NotFoundException;
@@ -28,11 +33,15 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.extern.log4j.Log4j2;
 import one.util.streamex.StreamEx;
 
 @Component
 @StepScope
+@Log4j2
 public class MapToEdifactClaimsTasklet extends MapToEdifactTasklet {
+
+  private static final String NO_PIECES_MATCH_ACQ_METHODS_ERROR_MESSAGE = "No claimed pieces match the acquisition methods of the integration";
 
   private final ExportResourceMapper edifactMapper;
   private final ExportResourceMapper claimCsvMapper;
@@ -90,6 +99,41 @@ public class MapToEdifactClaimsTasklet extends MapToEdifactTasklet {
         return orders.getFirst().poLines(poLines);
       }).toList();
 
+    return filterByAcquisitionMethods(new ExportHolder(compOrders, pieces), ediExportConfig);
+  }
+
+  /**
+   * Keeps only the pieces whose po line has one of the acquisition methods selected on the integration,
+   * together with their po lines and orders. Without selected acquisition methods all pieces are kept.
+   */
+  private ExportHolder filterByAcquisitionMethods(ExportHolder holder, VendorEdiOrdersExportConfig ediExportConfig) {
+    var acqMethods = Optional.ofNullable(ediExportConfig.getEdiConfig())
+      .map(EdiConfig::getDefaultAcquisitionMethods)
+      .orElse(List.of());
+    if (acqMethods.isEmpty()) {
+      return holder;
+    }
+
+    var acqMethodIds = acqMethods.stream().map(UUID::toString).collect(Collectors.toSet());
+    var compOrders = holder.orders().stream()
+      .map(order -> order.poLines(order.getPoLines().stream()
+        .filter(poLine -> acqMethodIds.contains(poLine.getAcquisitionMethod()))
+        .toList()))
+      .filter(order -> CollectionUtils.isNotEmpty(order.getPoLines()))
+      .toList();
+    var poLineIds = compOrders.stream()
+      .flatMap(order -> order.getPoLines().stream())
+      .map(PoLine::getId)
+      .collect(Collectors.toSet());
+    var pieces = holder.pieces().stream()
+      .filter(piece -> poLineIds.contains(piece.getPoLineId()))
+      .toList();
+
+    log.info("filterByAcquisitionMethods:: Kept {} of {} claimed pieces for acquisition methods: {}",
+      pieces.size(), holder.pieces().size(), acqMethodIds);
+    if (pieces.isEmpty()) {
+      throw new NotFoundException(NO_PIECES_MATCH_ACQ_METHODS_ERROR_MESSAGE);
+    }
     return new ExportHolder(compOrders, pieces);
   }
 

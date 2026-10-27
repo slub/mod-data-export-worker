@@ -12,13 +12,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
+import org.folio.dew.domain.dto.CompositePurchaseOrder;
 import org.folio.dew.domain.dto.Piece;
 import org.folio.dew.domain.dto.PieceCollection;
 import org.folio.dew.domain.dto.PoLine;
@@ -28,6 +32,7 @@ import org.folio.dew.domain.dto.PurchaseOrderCollection;
 import org.folio.dew.domain.dto.acquisitions.edifact.Organization;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.job.Job;
@@ -43,6 +48,7 @@ import lombok.SneakyThrows;
 class MapToEdifactClaimsTaskletTest extends MapToEdifactTaskletAbstractTest {
 
   private static final String SAMPLE_PIECES_PATH = "edifact/acquisitions/pieces_collection.json";
+  private static final String OTHER_ACQ_METHOD = "da6703b1-81fe-44af-927a-94f24d1ab8ee";
 
   @Autowired
   Job edifactClaimsExportJob;
@@ -61,6 +67,8 @@ class MapToEdifactClaimsTaskletTest extends MapToEdifactTaskletAbstractTest {
     orders = objectMapper.readValue(getMockData(SAMPLE_PURCHASE_ORDERS_PATH), PurchaseOrderCollection.class).getPurchaseOrders();
     poLines = objectMapper.readValue(getMockData(SAMPLE_PO_LINES_PATH), PoLineCollection.class).getPoLines();
     pieces = objectMapper.readValue(getMockData(SAMPLE_PIECES_PATH), PieceCollection.class).getPieces();
+    // the sample pieces belong to the sample po line
+    pieces.forEach(piece -> piece.setPoLineId(poLines.getFirst().getId()));
 
     pieceIds = pieces.stream().map(Piece::getId).toList();
     doReturn(pieces).when(ordersService).getPiecesByIdsAndReceivingStatus(pieceIds, Piece.ReceivingStatusEnum.CLAIM_SENT);
@@ -98,6 +106,66 @@ class MapToEdifactClaimsTaskletTest extends MapToEdifactTaskletAbstractTest {
     assertThat(jobExecution.getExitStatus().getExitCode()).isEqualTo(ExitStatus.FAILED.getExitCode());
     assertThat(jobExecution.getExitStatus().getExitDescription()).contains("Entities not found: Piece");
     verify(ordersService).getPiecesByIdsAndReceivingStatus(pieceIds, Piece.ReceivingStatusEnum.CLAIM_SENT);
+  }
+
+  @Test
+  void testEdifactClaimsExportWithoutAcquisitionMethods_exportsAllPieces() throws Exception {
+    JobOperatorTestUtils testLauncher = createTestLauncher(edifactExportJob);
+    poLines.getFirst().setAcquisitionMethod(OTHER_ACQ_METHOD);
+    doReturn(poLines).when(ordersService).getPoLinesByQuery(anyString());
+    doReturn(orders).when(ordersService).getPurchaseOrdersByIds(anyList());
+    doReturn("test1").when(edifactMapper).convertForExport(any(), any(), any(), anyString());
+
+    var exportConfig = getEdifactExportConfig(SAMPLE_EDI_ORDERS_EXPORT, pieceIds);
+    ((ObjectNode) exportConfig.get("ediConfig")).putArray("defaultAcquisitionMethods");
+    JobExecution jobExecution = testLauncher.startStep(MAP_TO_EDIFACT_STEP, getJobParameters(exportConfig), new ExecutionContext());
+
+    assertThat(jobExecution.getExitStatus()).isEqualTo(ExitStatus.COMPLETED);
+    verify(edifactMapper).convertForExport(any(), eq(pieces), any(), anyString());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testEdifactClaimsExportWithAcquisitionMethods_exportsOnlyMatchingPieces() throws Exception {
+    JobOperatorTestUtils testLauncher = createTestLauncher(edifactExportJob);
+    var matchingLine = poLines.getFirst();
+    var otherLine = objectMapper.readValue(objectMapper.writeValueAsString(matchingLine), PoLine.class)
+      .id(UUID.randomUUID().toString())
+      .acquisitionMethod(OTHER_ACQ_METHOD);
+    var matchingPiece = pieces.getFirst();
+    var otherPiece = objectMapper.readValue(objectMapper.writeValueAsString(matchingPiece), Piece.class)
+      .id(UUID.randomUUID().toString())
+      .poLineId(otherLine.getId());
+    var allPieceIds = List.of(matchingPiece.getId(), otherPiece.getId());
+    doReturn(List.of(matchingPiece, otherPiece)).when(ordersService).getPiecesByIdsAndReceivingStatus(allPieceIds, Piece.ReceivingStatusEnum.CLAIM_SENT);
+    doReturn(List.of(matchingLine, otherLine)).when(ordersService).getPoLinesByQuery(anyString());
+    doReturn(orders).when(ordersService).getPurchaseOrdersByIds(anyList());
+    doReturn("test1").when(edifactMapper).convertForExport(any(), any(), any(), anyString());
+
+    // the sample export config selects the acquisition method of the sample po line only
+    var exportConfig = getEdifactExportConfig(SAMPLE_EDI_ORDERS_EXPORT, allPieceIds);
+    JobExecution jobExecution = testLauncher.startStep(MAP_TO_EDIFACT_STEP, getJobParameters(exportConfig), new ExecutionContext());
+
+    assertThat(jobExecution.getExitStatus()).isEqualTo(ExitStatus.COMPLETED);
+    ArgumentCaptor<List<CompositePurchaseOrder>> ordersCaptor = ArgumentCaptor.forClass(List.class);
+    verify(edifactMapper).convertForExport(ordersCaptor.capture(), eq(List.of(matchingPiece)), any(), anyString());
+    assertThat(ordersCaptor.getValue()).hasSize(1);
+    assertThat(ordersCaptor.getValue().getFirst().getPoLines()).extracting(PoLine::getId).containsExactly(matchingLine.getId());
+  }
+
+  @Test
+  void testEdifactClaimsExportWithAcquisitionMethods_noMatchingPieces() throws Exception {
+    JobOperatorTestUtils testLauncher = createTestLauncher(edifactExportJob);
+    poLines.getFirst().setAcquisitionMethod(OTHER_ACQ_METHOD);
+    doReturn(poLines).when(ordersService).getPoLinesByQuery(anyString());
+    doReturn(orders).when(ordersService).getPurchaseOrdersByIds(anyList());
+
+    var exportConfig = getEdifactExportConfig(SAMPLE_EDI_ORDERS_EXPORT, pieceIds);
+    JobExecution jobExecution = testLauncher.startStep(MAP_TO_EDIFACT_STEP, getJobParameters(exportConfig), new ExecutionContext());
+
+    assertThat(jobExecution.getExitStatus().getExitCode()).isEqualTo(ExitStatus.FAILED.getExitCode());
+    assertThat(jobExecution.getExitStatus().getExitDescription()).contains("No claimed pieces match the acquisition methods of the integration");
+    verify(edifactMapper, never()).convertForExport(any(), any(), any(), anyString());
   }
 
   @Test

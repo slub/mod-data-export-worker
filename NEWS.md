@@ -13,6 +13,7 @@
 * [MODEXPW-638](https://folio-org.atlassian.net/browse/MODEXPW-638) Resolve PO and PO line custom fields in the order email export
 * [MODEXPW-652](https://folio-org.atlassian.net/browse/MODEXPW-652) Support manual orders export by PO line ids
 * [MODEXPW-661](https://folio-org.atlassian.net/browse/MODEXPW-661) eholdings export: Include managed and custom subjects in package export
+* [MODEXPW-666](https://folio-org.atlassian.net/browse/MODEXPW-666) Claims export: only include pieces whose PO line acquisition method is selected on the integration
 
 ### Bug fixes
 * [MODEXPW-651](https://folio-org.atlassian.net/browse/MODEXPW-651) Always format email context createdAt with millisecond precision
