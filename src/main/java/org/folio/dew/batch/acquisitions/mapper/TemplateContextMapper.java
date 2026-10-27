@@ -8,11 +8,15 @@ import org.folio.dew.batch.acquisitions.services.ConfigurationService;
 import org.folio.dew.batch.acquisitions.services.ContributorNameTypeService;
 import org.folio.dew.batch.acquisitions.services.CustomFieldsService;
 import org.folio.dew.batch.acquisitions.services.IdentifierTypeService;
+import org.folio.dew.batch.acquisitions.services.OrdersService;
 import org.folio.dew.batch.acquisitions.services.OrganizationsService;
 import org.folio.dew.batch.acquisitions.services.UserService;
 import org.folio.dew.domain.dto.*;
 import org.folio.dew.domain.dto.acquisitions.edifact.Organization;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
+import org.folio.dew.domain.dto.templateengine.context.BaseTemplateContext;
+import org.folio.dew.domain.dto.templateengine.context.ClaimOrderLineContext;
+import org.folio.dew.domain.dto.templateengine.context.ClaimingTemplateContext;
 import org.folio.dew.domain.dto.templateengine.context.ContributorContext;
 import org.folio.dew.domain.dto.templateengine.context.CostContext;
 import org.folio.dew.domain.dto.templateengine.context.DetailsContext;
@@ -25,6 +29,8 @@ import org.folio.dew.domain.dto.templateengine.context.OrderMetadataContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderWrapper;
 import org.folio.dew.domain.dto.templateengine.context.OrganizationAddressContext;
 import org.folio.dew.domain.dto.templateengine.context.OrganizationContext;
+import org.folio.dew.domain.dto.templateengine.context.PieceContext;
+import org.folio.dew.domain.dto.templateengine.context.PieceWrapper;
 import org.folio.dew.domain.dto.templateengine.context.ProductIdContext;
 import org.folio.dew.domain.dto.templateengine.context.TenantAddressContext;
 import org.folio.dew.domain.dto.templateengine.context.TypeContext;
@@ -35,12 +41,20 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Predicate;
+
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
+import static java.util.stream.Collectors.groupingBy;
+import static org.folio.dew.batch.acquisitions.utils.ExportUtils.getFormattedDate;
 
 @Component
 @RequiredArgsConstructor
@@ -50,6 +64,9 @@ public class TemplateContextMapper {
   private static final DateTimeFormatter CREATED_AT_FORMATTER = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
   private static final String ENTITY_TYPE_PURCHASE_ORDER = "purchase_order";
   private static final String ENTITY_TYPE_PO_LINE = "po_line";
+  private static final Comparator<Piece> PIECE_ORDER = Comparator
+    .comparing(Piece::getReceiptDate, nullsLast(naturalOrder()))
+    .thenComparing(Piece::getDisplaySummary, nullsLast(naturalOrder()));
 
   private final IdentifierTypeService identifierTypeService;
   private final ContributorNameTypeService contributorNameTypeService;
@@ -57,20 +74,41 @@ public class TemplateContextMapper {
   private final UserService userService;
   private final OrganizationsService organizationsService;
   private final CustomFieldsService customFieldsService;
+  private final OrdersService ordersService;
 
   public OrderingTemplateContext buildContext(List<CompositePurchaseOrder> orders) {
-    var orderWrappers = orders.stream()
+    return fillContext(OrderingTemplateContext.builder(), orders,
+        line -> fillOrderLine(OrderLineContext.builder(), line).build())
+      .build();
+  }
+
+  public ClaimingTemplateContext buildClaimContext(List<CompositePurchaseOrder> orders, List<Piece> pieces) {
+    var piecesByPoLineId = pieces.stream().collect(groupingBy(Piece::getPoLineId));
+    // titleId -> title, so that a package title is looked up only once per context
+    var titles = new HashMap<String, String>();
+    return fillContext(ClaimingTemplateContext.builder(), orders,
+        line -> fillOrderLine(ClaimOrderLineContext.builder(), line)
+          .pieces(mapPieces(line, piecesByPoLineId.getOrDefault(line.getId(), List.of()), titles))
+          .build())
+      .build();
+  }
+
+  private <B extends BaseTemplateContext.BaseTemplateContextBuilder<?, ?>> B fillContext(B builder,
+      List<CompositePurchaseOrder> orders, Function<PoLine, OrderLineContext> lineMapper) {
+    builder.createdAt(formatCreatedAt(Instant.now()))
+      .organization(mapOrganization(orders))
+      .orders(mapOrders(orders, lineMapper));
+    return builder;
+  }
+
+  private List<OrderWrapper> mapOrders(List<CompositePurchaseOrder> orders, Function<PoLine, OrderLineContext> lineMapper) {
+    return orders.stream()
       .map(order -> new OrderWrapper(
         mapOrder(order),
         order.getPoLines().stream()
-          .map(line -> new OrderLineWrapper(mapOrderLine(line)))
+          .map(line -> new OrderLineWrapper(lineMapper.apply(line)))
           .toList()))
       .toList();
-    return OrderingTemplateContext.builder()
-      .createdAt(formatCreatedAt(Instant.now()))
-      .organization(mapOrganization(orders))
-      .orders(orderWrappers)
-      .build();
   }
 
   static String formatCreatedAt(Instant instant) {
@@ -171,9 +209,8 @@ public class TemplateContextMapper {
       .build();
   }
 
-  private OrderLineContext mapOrderLine(PoLine line) {
-    return OrderLineContext.builder()
-      .poLineNumber(StringUtils.defaultString(line.getPoLineNumber()))
+  private <B extends OrderLineContext.OrderLineContextBuilder<?, ?>> B fillOrderLine(B builder, PoLine line) {
+    builder.poLineNumber(StringUtils.defaultString(line.getPoLineNumber()))
       .titleOrPackage(StringUtils.defaultString(line.getTitleOrPackage()))
       .publisher(StringUtils.defaultString(line.getPublisher()))
       .publicationDate(StringUtils.defaultString(line.getPublicationDate()))
@@ -184,8 +221,54 @@ public class TemplateContextMapper {
       .cost(mapCost(line.getCost()))
       .fundDistribution(mapList(line.getFundDistribution(), this::mapFundDistribution))
       .vendorDetail(mapVendorDetail(line.getVendorDetail()))
-      .customFields(customFieldsService.resolve(line.getCustomFields(), ENTITY_TYPE_PO_LINE))
+      .customFields(customFieldsService.resolve(line.getCustomFields(), ENTITY_TYPE_PO_LINE));
+    return builder;
+  }
+
+  private List<PieceWrapper> mapPieces(PoLine line, List<Piece> pieces, Map<String, String> titles) {
+    return pieces.stream()
+      .sorted(PIECE_ORDER)
+      .map(piece -> new PieceWrapper(mapPiece(line, piece, titles)))
+      .toList();
+  }
+
+  private PieceContext mapPiece(PoLine line, Piece piece, Map<String, String> titles) {
+    return PieceContext.builder()
+      .title(resolvePieceTitle(line, piece, titles))
+      .displaySummary(StringUtils.defaultString(piece.getDisplaySummary()))
+      .enumeration(StringUtils.defaultString(piece.getEnumeration()))
+      .chronology(StringUtils.defaultString(piece.getChronology()))
+      .copyNumber(StringUtils.defaultString(piece.getCopyNumber()))
+      .barcode(StringUtils.defaultString(piece.getBarcode()))
+      .callNumber(StringUtils.defaultString(piece.getCallNumber()))
+      .accessionNumber(StringUtils.defaultString(piece.getAccessionNumber()))
+      .format(Optional.ofNullable(piece.getFormat()).map(Piece.FormatEnum::getValue).orElse(""))
+      .supplement(Optional.ofNullable(piece.getSupplement()).orElse(false))
+      .receivingStatus(Optional.ofNullable(piece.getReceivingStatus()).map(Piece.ReceivingStatusEnum::getValue).orElse(""))
+      .receiptDate(getFormattedDate(piece.getReceiptDate()))
+      .statusUpdatedDate(getFormattedDate(piece.getStatusUpdatedDate()))
+      .claimingInterval(piece.getClaimingInterval())
+      .externalNote(StringUtils.defaultString(piece.getExternalNote()))
       .build();
+  }
+
+  // Same rule as the claims CSV: a package PO line takes the title of the piece's title record
+  private String resolvePieceTitle(PoLine line, Piece piece, Map<String, String> titles) {
+    var lineTitle = StringUtils.defaultString(line.getTitleOrPackage());
+    if (!Boolean.TRUE.equals(line.getIsPackage()) || StringUtils.isBlank(piece.getTitleId())) {
+      return lineTitle;
+    }
+    var title = titles.computeIfAbsent(piece.getTitleId(), this::resolveTitle);
+    return StringUtils.isBlank(title) ? lineTitle : title;
+  }
+
+  private String resolveTitle(String titleId) {
+    try {
+      return StringUtils.defaultString(ordersService.getTitleById(titleId).getTitle());
+    } catch (Exception e) {
+      log.warn("resolveTitle:: Cannot resolve title '{}' for template context", titleId, e);
+      return "";
+    }
   }
 
   private <S, T> List<T> mapList(List<S> source, Function<S, T> mapper) {

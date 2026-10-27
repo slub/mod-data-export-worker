@@ -5,15 +5,23 @@ import org.folio.dew.batch.acquisitions.services.ConfigurationService;
 import org.folio.dew.batch.acquisitions.services.ContributorNameTypeService;
 import org.folio.dew.batch.acquisitions.services.CustomFieldsService;
 import org.folio.dew.batch.acquisitions.services.IdentifierTypeService;
+import org.folio.dew.batch.acquisitions.services.OrdersService;
 import org.folio.dew.batch.acquisitions.services.OrganizationsService;
 import org.folio.dew.batch.acquisitions.services.UserService;
 import org.folio.dew.domain.dto.CompositePurchaseOrder;
+import org.folio.dew.domain.dto.OrdersTitle;
+import org.folio.dew.domain.dto.Piece;
+import org.folio.dew.domain.dto.PoLine;
 import org.folio.dew.domain.dto.acquisitions.edifact.Organization;
 import org.folio.dew.domain.dto.acquisitions.edifact.OrganizationAddress;
 import org.folio.dew.domain.dto.acquisitions.edifact.TenantAddress;
+import org.folio.dew.domain.dto.templateengine.context.ClaimOrderLineContext;
+import org.folio.dew.domain.dto.templateengine.context.ClaimingTemplateContext;
 import org.folio.dew.domain.dto.templateengine.context.CustomFieldContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderingTemplateContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderLineContext;
+import org.folio.dew.domain.dto.templateengine.context.PieceContext;
+import org.folio.dew.domain.dto.templateengine.context.PieceWrapper;
 import org.folio.dew.domain.dto.templateengine.context.UserContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +31,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,6 +44,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,13 +69,15 @@ class TemplateContextMapperTest {
   private OrganizationsService organizationsService;
   @Mock
   private CustomFieldsService customFieldsService;
+  @Mock
+  private OrdersService ordersService;
 
   private TemplateContextMapper mapper;
   private ObjectMapper objectMapper;
 
   @BeforeEach
   void setUp() {
-    mapper = new TemplateContextMapper(identifierTypeService, contributorNameTypeService, configurationService, userService, organizationsService, customFieldsService);
+    mapper = new TemplateContextMapper(identifierTypeService, contributorNameTypeService, configurationService, userService, organizationsService, customFieldsService, ordersService);
     objectMapper = new ObjectMapper();
     lenient().when(identifierTypeService.getIdentifierTypeName(anyString())).thenReturn("ISBN");
     lenient().when(contributorNameTypeService.getContributorNameTypeName(anyString())).thenReturn("Personal name");
@@ -338,6 +353,178 @@ class TemplateContextMapperTest {
       .getContributors().get(0).getContributorNameType();
     assertThat(contributorNameType.getName()).isEmpty();
     assertThat(contributorNameType.getId()).isEqualTo("2b94c631-fca9-4892-a730-03ee529ffe2a");
+  }
+
+  @Test
+  void buildClaimContext_putsPiecesUnderTheirOwnOrderLine() throws IOException {
+    var order = orderWithTwoLines();
+    var line1 = order.getPoLines().get(0);
+    var line2 = order.getPoLines().get(1);
+    var issue4 = piece(line1, "Heft 4", LocalDate.of(2027, 4, 1));
+    var other = piece(line2, "Band 1", LocalDate.of(2027, 1, 1));
+    var issue3 = piece(line1, "Heft 3", LocalDate.of(2027, 3, 1));
+
+    ClaimingTemplateContext ctx = mapper.buildClaimContext(List.of(order), List.of(issue4, other, issue3));
+
+    var lines = ctx.getOrders().get(0).orderLines();
+    assertThat(lines).hasSize(2);
+    assertThat(lines).allSatisfy(wrapper -> assertThat(wrapper.orderLine()).isInstanceOf(ClaimOrderLineContext.class));
+    assertThat(displaySummaries((ClaimOrderLineContext) lines.get(0).orderLine())).containsExactly("Heft 3", "Heft 4");
+    assertThat(displaySummaries((ClaimOrderLineContext) lines.get(1).orderLine())).containsExactly("Band 1");
+  }
+
+  @Test
+  void buildClaimContext_keepsAllOrderLineFields() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+    var line = order.getPoLines().get(0);
+
+    var orderLine = mapper.buildContext(List.of(order)).getOrders().get(0).orderLines().get(0).orderLine();
+    var claimLine = mapper.buildClaimContext(List.of(order), List.of(piece(line, "Heft 1", null)))
+      .getOrders().get(0).orderLines().get(0).orderLine();
+
+    assertThat(claimLine).usingRecursiveComparison().ignoringFields("pieces").isEqualTo(orderLine);
+  }
+
+  @Test
+  void buildClaimContext_mapsPieceFields() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+    var line = order.getPoLines().get(0);
+    var piece = piece(line, "Heft 3/2027", LocalDate.of(2027, 3, 1))
+      .enumeration("Jg. 12, Nr. 3")
+      .chronology("März 2027")
+      .copyNumber("c.1")
+      .barcode("4711")
+      .callNumber("Z 123")
+      .accessionNumber("A-1")
+      .format(Piece.FormatEnum.PHYSICAL)
+      .supplement(true)
+      .receivingStatus(Piece.ReceivingStatusEnum.CLAIM_SENT)
+      .statusUpdatedDate(toDate(LocalDate.of(2027, 4, 16)))
+      .claimingInterval(14)
+      .externalNote("Please deliver urgently");
+
+    var pieceContext = singlePiece(mapper.buildClaimContext(List.of(order), List.of(piece)));
+
+    assertThat(pieceContext).isEqualTo(PieceContext.builder()
+      .title(line.getTitleOrPackage())
+      .displaySummary("Heft 3/2027")
+      .enumeration("Jg. 12, Nr. 3")
+      .chronology("März 2027")
+      .copyNumber("c.1")
+      .barcode("4711")
+      .callNumber("Z 123")
+      .accessionNumber("A-1")
+      .format("Physical")
+      .supplement(true)
+      .receivingStatus("Claim sent")
+      .receiptDate("2027-03-01")
+      .statusUpdatedDate("2027-04-16")
+      .claimingInterval(14)
+      .externalNote("Please deliver urgently")
+      .build());
+  }
+
+  @Test
+  void buildClaimContext_emptyPieceFields_returnDefaults() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+    // the generated Piece defaults receivingStatus to "Expected"
+    var piece = new Piece().id(UUID.randomUUID().toString()).poLineId(order.getPoLines().get(0).getId()).receivingStatus(null);
+
+    var pieceContext = singlePiece(mapper.buildClaimContext(List.of(order), List.of(piece)));
+
+    assertThat(pieceContext.getDisplaySummary()).isEmpty();
+    assertThat(pieceContext.getEnumeration()).isEmpty();
+    assertThat(pieceContext.getChronology()).isEmpty();
+    assertThat(pieceContext.getFormat()).isEmpty();
+    assertThat(pieceContext.getSupplement()).isFalse();
+    assertThat(pieceContext.getReceivingStatus()).isEmpty();
+    assertThat(pieceContext.getReceiptDate()).isEmpty();
+    assertThat(pieceContext.getStatusUpdatedDate()).isEmpty();
+    assertThat(pieceContext.getClaimingInterval()).isNull();
+    assertThat(pieceContext.getExternalNote()).isEmpty();
+  }
+
+  @Test
+  void buildClaimContext_packageLine_resolvesTitleOncePerTitleId() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+    var line = order.getPoLines().get(0).isPackage(true);
+    var titleId = UUID.randomUUID().toString();
+    when(ordersService.getTitleById(titleId)).thenReturn(new OrdersTitle().title("Package title"));
+    var piece1 = piece(line, "Heft 1", null).titleId(titleId);
+    var piece2 = piece(line, "Heft 2", null).titleId(titleId);
+
+    var ctx = mapper.buildClaimContext(List.of(order), List.of(piece1, piece2));
+
+    var pieces = ((ClaimOrderLineContext) ctx.getOrders().get(0).orderLines().get(0).orderLine()).getPieces();
+    assertThat(pieces).extracting(wrapper -> wrapper.piece().getTitle()).containsExactly("Package title", "Package title");
+    verify(ordersService, times(1)).getTitleById(titleId);
+  }
+
+  @Test
+  void buildClaimContext_titleLookupFails_fallsBackToOrderLineTitle() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+    var line = order.getPoLines().get(0).isPackage(true);
+    var titleId = UUID.randomUUID().toString();
+    when(ordersService.getTitleById(titleId)).thenThrow(new RuntimeException("orders-storage unavailable"));
+
+    var pieceContext = singlePiece(mapper.buildClaimContext(List.of(order), List.of(piece(line, "Heft 1", null).titleId(titleId))));
+
+    assertThat(pieceContext.getTitle()).isEqualTo(line.getTitleOrPackage());
+  }
+
+  @Test
+  void buildClaimContext_json_containsPiecesButNoInternalFields() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+    var piece = piece(order.getPoLines().get(0), "Heft 3", null)
+      .enumeration("Nr. 3")
+      .internalNote("internal-secret")
+      .comment("comment-secret");
+
+    var json = objectMapper.valueToTree(mapper.buildClaimContext(List.of(order), List.of(piece)));
+
+    assertThat(json.at("/orders/0/orderLines/0/orderLine/pieces/0/piece/enumeration").asText()).isEqualTo("Nr. 3");
+    assertThat(json.toString()).doesNotContain("internalNote", "internal-secret", "comment-secret");
+  }
+
+  @Test
+  void buildContext_json_containsNoPieces() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+
+    var json = objectMapper.valueToTree(mapper.buildContext(List.of(order)));
+
+    assertThat(json.at("/orders/0/orderLines/0/orderLine").has("poLineNumber")).isTrue();
+    assertThat(json.toString()).doesNotContain("pieces");
+  }
+
+  private CompositePurchaseOrder orderWithTwoLines() throws IOException {
+    var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
+    var secondLine = objectMapper.convertValue(order.getPoLines().get(0), PoLine.class)
+      .id(UUID.randomUUID().toString())
+      .poLineNumber("10000-2");
+    order.getPoLines().add(secondLine);
+    return order;
+  }
+
+  private Piece piece(PoLine line, String displaySummary, LocalDate receiptDate) {
+    return new Piece()
+      .id(UUID.randomUUID().toString())
+      .poLineId(line.getId())
+      .displaySummary(displaySummary)
+      .receiptDate(receiptDate == null ? null : toDate(receiptDate));
+  }
+
+  private Date toDate(LocalDate date) {
+    return Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant());
+  }
+
+  private List<String> displaySummaries(ClaimOrderLineContext line) {
+    return line.getPieces().stream().map(PieceWrapper::piece).map(PieceContext::getDisplaySummary).toList();
+  }
+
+  private PieceContext singlePiece(ClaimingTemplateContext ctx) {
+    var line = (ClaimOrderLineContext) ctx.getOrders().get(0).orderLines().get(0).orderLine();
+    assertThat(line.getPieces()).hasSize(1);
+    return line.getPieces().get(0).piece();
   }
 
   private CompositePurchaseOrder loadOrder(String path) throws IOException {
