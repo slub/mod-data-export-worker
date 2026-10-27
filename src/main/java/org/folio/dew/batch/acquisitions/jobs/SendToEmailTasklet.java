@@ -8,7 +8,7 @@ import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.folio.dew.batch.ExecutionContextUtils;
 import org.folio.dew.batch.acquisitions.exceptions.EdifactException;
-import org.folio.dew.batch.acquisitions.mapper.OrderEmailContextMapper;
+import org.folio.dew.batch.acquisitions.mapper.TemplateContextMapper;
 import org.folio.dew.client.EmailClient;
 import org.folio.dew.client.TemplateEngineClient;
 import org.folio.dew.domain.dto.CompositePurchaseOrder;
@@ -47,7 +47,7 @@ public class SendToEmailTasklet implements Tasklet {
   private final ObjectMapper ediObjectMapper;
   private final EmailClient emailClient;
   private final TemplateEngineClient templateEngineClient;
-  private final OrderEmailContextMapper orderEmailContextMapper;
+  private final TemplateContextMapper templateContextMapper;
 
   @Override
   @SneakyThrows
@@ -100,7 +100,7 @@ public class SendToEmailTasklet implements Tasklet {
     var request = TemplateProcessingRequest.builder()
       .templateId(templateId)
       .build();
-    request.setContext(orderEmailContextMapper.buildContext(orders));
+    request.setContext(templateContextMapper.buildContext(orders));
 
     try {
       TemplateProcessingResponse response = templateEngineClient.processTemplate(request);

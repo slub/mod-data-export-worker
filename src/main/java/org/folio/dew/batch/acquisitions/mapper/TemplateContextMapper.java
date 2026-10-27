@@ -18,7 +18,7 @@ import org.folio.dew.domain.dto.templateengine.context.CostContext;
 import org.folio.dew.domain.dto.templateengine.context.DetailsContext;
 import org.folio.dew.domain.dto.templateengine.context.FundDistributionContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderContext;
-import org.folio.dew.domain.dto.templateengine.context.OrderEmailContext;
+import org.folio.dew.domain.dto.templateengine.context.OrderingTemplateContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderLineContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderLineWrapper;
 import org.folio.dew.domain.dto.templateengine.context.OrderMetadataContext;
@@ -45,7 +45,7 @@ import java.util.function.Predicate;
 @Component
 @RequiredArgsConstructor
 @Log4j2
-public class OrderEmailContextMapper {
+public class TemplateContextMapper {
 
   private static final DateTimeFormatter CREATED_AT_FORMATTER = new DateTimeFormatterBuilder().appendInstant(3).toFormatter();
   private static final String ENTITY_TYPE_PURCHASE_ORDER = "purchase_order";
@@ -58,7 +58,7 @@ public class OrderEmailContextMapper {
   private final OrganizationsService organizationsService;
   private final CustomFieldsService customFieldsService;
 
-  public OrderEmailContext buildContext(List<CompositePurchaseOrder> orders) {
+  public OrderingTemplateContext buildContext(List<CompositePurchaseOrder> orders) {
     var orderWrappers = orders.stream()
       .map(order -> new OrderWrapper(
         mapOrder(order),
@@ -66,7 +66,7 @@ public class OrderEmailContextMapper {
           .map(line -> new OrderLineWrapper(mapOrderLine(line)))
           .toList()))
       .toList();
-    return OrderEmailContext.builder()
+    return OrderingTemplateContext.builder()
       .createdAt(formatCreatedAt(Instant.now()))
       .organization(mapOrganization(orders))
       .orders(orderWrappers)

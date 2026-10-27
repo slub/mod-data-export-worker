@@ -7,7 +7,7 @@ import java.util.List;
 
 @Data
 @Builder
-public class OrderEmailContext {
+public class OrderingTemplateContext {
   private String createdAt;
   private OrganizationContext organization;
   private List<OrderWrapper> orders;
