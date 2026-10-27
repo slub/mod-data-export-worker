@@ -145,16 +145,9 @@ OrderingTemplateContext / ClaimingTemplateContext
                     ├── displaySummary       # e.g. issue label
                     ├── enumeration
                     ├── chronology
-                    ├── copyNumber
-                    ├── barcode
-                    ├── callNumber
-                    ├── accessionNumber
                     ├── format               # Physical, Electronic, Other
                     ├── supplement           # boolean
-                    ├── receivingStatus      # Claim sent after a claim
                     ├── receiptDate          # expected receipt date, yyyy-MM-dd
-                    ├── statusUpdatedDate    # date of the last status change (the claim), yyyy-MM-dd
-                    ├── claimingInterval     # days granted to the vendor
                     └── externalNote         # note to the vendor (internalNote and comment are never exported)
 ```
 > **Null/empty policy:** missing values are rendered as safe defaults rather than
@@ -177,6 +170,9 @@ OrderingTemplateContext / ClaimingTemplateContext
 > claims export, and a claims job without claimed pieces fails instead of sending an email.
 
 #### Example payload — orders
+
+<details>
+<summary>Show orders example</summary>
 
 ```json
 {
@@ -303,9 +299,14 @@ OrderingTemplateContext / ClaimingTemplateContext
 }
 ```
 
+</details>
+
 #### Example payload — claims
 
 A serial with two claimed issues on the same PO line. Only PO lines with claimed pieces are included.
+
+<details>
+<summary>Show claims example</summary>
 
 ```json
 {
@@ -408,16 +409,9 @@ A serial with two claimed issues on the same PO line. Only PO lines with claimed
                   "displaySummary": "Heft 3/2027",
                   "enumeration": "Jg. 12, Nr. 3",
                   "chronology": "März 2027",
-                  "copyNumber": "",
-                  "barcode": "",
-                  "callNumber": "",
-                  "accessionNumber": "",
                   "format": "Physical",
                   "supplement": false,
-                  "receivingStatus": "Claim sent",
                   "receiptDate": "2027-03-01",
-                  "statusUpdatedDate": "2027-04-16",
-                  "claimingInterval": 14,
                   "externalNote": "Second reminder – please deliver urgently"
                 }
               },
@@ -427,16 +421,9 @@ A serial with two claimed issues on the same PO line. Only PO lines with claimed
                   "displaySummary": "Heft 4/2027",
                   "enumeration": "Jg. 12, Nr. 4",
                   "chronology": "April 2027",
-                  "copyNumber": "",
-                  "barcode": "",
-                  "callNumber": "",
-                  "accessionNumber": "",
                   "format": "Physical",
                   "supplement": false,
-                  "receivingStatus": "Claim sent",
                   "receiptDate": "2027-04-01",
-                  "statusUpdatedDate": "2027-04-16",
-                  "claimingInterval": 21,
                   "externalNote": "Please confirm delivery date"
                 }
               }
@@ -448,3 +435,5 @@ A serial with two claimed issues on the same PO line. Only PO lines with claimed
   ]
 }
 ```
+
+</details>
