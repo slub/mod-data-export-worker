@@ -27,7 +27,6 @@
     "emailTo": "vendor@example.com",
     "emailTemplate": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
   },
-  "isDefaultConfig": false,
   "claimPieceIds": [
     "d4f4c0e6-0c3b-4b7e-9a7c-1f2e3d4c5b6a"
   ]

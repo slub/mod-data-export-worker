@@ -392,15 +392,8 @@ class TemplateContextMapperTest {
     var piece = piece(line, "Heft 3/2027", LocalDate.of(2027, 3, 1))
       .enumeration("Jg. 12, Nr. 3")
       .chronology("März 2027")
-      .copyNumber("c.1")
-      .barcode("4711")
-      .callNumber("Z 123")
-      .accessionNumber("A-1")
       .format(Piece.FormatEnum.PHYSICAL)
       .supplement(true)
-      .receivingStatus(Piece.ReceivingStatusEnum.CLAIM_SENT)
-      .statusUpdatedDate(toDate(LocalDate.of(2027, 4, 16)))
-      .claimingInterval(14)
       .externalNote("Please deliver urgently");
 
     var pieceContext = singlePiece(mapper.buildClaimContext(List.of(order), List.of(piece)));
@@ -410,16 +403,9 @@ class TemplateContextMapperTest {
       .displaySummary("Heft 3/2027")
       .enumeration("Jg. 12, Nr. 3")
       .chronology("März 2027")
-      .copyNumber("c.1")
-      .barcode("4711")
-      .callNumber("Z 123")
-      .accessionNumber("A-1")
       .format("Physical")
       .supplement(true)
-      .receivingStatus("Claim sent")
       .receiptDate("2027-03-01")
-      .statusUpdatedDate("2027-04-16")
-      .claimingInterval(14)
       .externalNote("Please deliver urgently")
       .build());
   }
@@ -427,8 +413,7 @@ class TemplateContextMapperTest {
   @Test
   void buildClaimContext_emptyPieceFields_returnDefaults() throws IOException {
     var order = loadOrder("edifact/acquisitions/composite_purchase_order_email_context.json");
-    // the generated Piece defaults receivingStatus to "Expected"
-    var piece = new Piece().id(UUID.randomUUID().toString()).poLineId(order.getPoLines().get(0).getId()).receivingStatus(null);
+    var piece = new Piece().id(UUID.randomUUID().toString()).poLineId(order.getPoLines().get(0).getId());
 
     var pieceContext = singlePiece(mapper.buildClaimContext(List.of(order), List.of(piece)));
 
@@ -437,10 +422,7 @@ class TemplateContextMapperTest {
     assertThat(pieceContext.getChronology()).isEmpty();
     assertThat(pieceContext.getFormat()).isEmpty();
     assertThat(pieceContext.getSupplement()).isFalse();
-    assertThat(pieceContext.getReceivingStatus()).isEmpty();
     assertThat(pieceContext.getReceiptDate()).isEmpty();
-    assertThat(pieceContext.getStatusUpdatedDate()).isEmpty();
-    assertThat(pieceContext.getClaimingInterval()).isNull();
     assertThat(pieceContext.getExternalNote()).isEmpty();
   }
 

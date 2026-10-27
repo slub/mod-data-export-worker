@@ -14,15 +14,8 @@ public class PieceContext {
   private String displaySummary;
   private String enumeration;
   private String chronology;
-  private String copyNumber;
-  private String barcode;
-  private String callNumber;
-  private String accessionNumber;
   private String format;
   private Boolean supplement;
-  private String receivingStatus;
   private String receiptDate;       // expected receipt date, yyyy-MM-dd
-  private String statusUpdatedDate; // date of the last status change (the claim), yyyy-MM-dd
-  private Integer claimingInterval;
   private String externalNote;
 }

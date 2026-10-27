@@ -48,7 +48,7 @@ public class SendToEmailTasklet implements Tasklet {
   private static final String TEMPLATE_ENGINE_ERROR_MESSAGE = "Failed to retrieve the email template";
   private static final String EMAIL_NOT_CONFIGURED_ERROR_MESSAGE = "Failed because no email configuration has been provided";
   private static final String TEMPLATE_NOT_CONFIGURED_ERROR_MESSAGE = "Failed because no email template has been configured";
-  private static final String NO_CLAIMED_PIECES_ERROR_MESSAGE = "Failed because no claimed pieces were found for the email";
+  private static final String NO_CLAIMED_PIECES_ERROR_MESSAGE = "Failed because no claimed pieces were found";
 
   private final ObjectMapper ediObjectMapper;
   private final EmailClient emailClient;

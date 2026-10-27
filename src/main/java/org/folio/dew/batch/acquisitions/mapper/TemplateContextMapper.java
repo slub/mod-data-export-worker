@@ -238,16 +238,9 @@ public class TemplateContextMapper {
       .displaySummary(StringUtils.defaultString(piece.getDisplaySummary()))
       .enumeration(StringUtils.defaultString(piece.getEnumeration()))
       .chronology(StringUtils.defaultString(piece.getChronology()))
-      .copyNumber(StringUtils.defaultString(piece.getCopyNumber()))
-      .barcode(StringUtils.defaultString(piece.getBarcode()))
-      .callNumber(StringUtils.defaultString(piece.getCallNumber()))
-      .accessionNumber(StringUtils.defaultString(piece.getAccessionNumber()))
       .format(Optional.ofNullable(piece.getFormat()).map(Piece.FormatEnum::getValue).orElse(""))
       .supplement(Optional.ofNullable(piece.getSupplement()).orElse(false))
-      .receivingStatus(Optional.ofNullable(piece.getReceivingStatus()).map(Piece.ReceivingStatusEnum::getValue).orElse(""))
       .receiptDate(getFormattedDate(piece.getReceiptDate()))
-      .statusUpdatedDate(getFormattedDate(piece.getStatusUpdatedDate()))
-      .claimingInterval(piece.getClaimingInterval())
       .externalNote(StringUtils.defaultString(piece.getExternalNote()))
       .build();
   }
