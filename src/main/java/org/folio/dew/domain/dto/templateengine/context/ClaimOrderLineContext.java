@@ -12,5 +12,5 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)
 public class ClaimOrderLineContext extends OrderLineContext {
-  private List<PieceWrapper> pieces; // claimed pieces of this order line only
+  private List<PieceContext> pieces; // claimed pieces of this order line only
 }

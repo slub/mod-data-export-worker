@@ -30,7 +30,6 @@ import org.folio.dew.domain.dto.templateengine.context.OrderWrapper;
 import org.folio.dew.domain.dto.templateengine.context.OrganizationAddressContext;
 import org.folio.dew.domain.dto.templateengine.context.OrganizationContext;
 import org.folio.dew.domain.dto.templateengine.context.PieceContext;
-import org.folio.dew.domain.dto.templateengine.context.PieceWrapper;
 import org.folio.dew.domain.dto.templateengine.context.ProductIdContext;
 import org.folio.dew.domain.dto.templateengine.context.TenantAddressContext;
 import org.folio.dew.domain.dto.templateengine.context.TypeContext;
@@ -225,10 +224,10 @@ public class TemplateContextMapper {
     return builder;
   }
 
-  private List<PieceWrapper> mapPieces(PoLine line, List<Piece> pieces, Map<String, String> titles) {
+  private List<PieceContext> mapPieces(PoLine line, List<Piece> pieces, Map<String, String> titles) {
     return pieces.stream()
       .sorted(PIECE_ORDER)
-      .map(piece -> new PieceWrapper(mapPiece(line, piece, titles)))
+      .map(piece -> mapPiece(line, piece, titles))
       .toList();
   }
 
