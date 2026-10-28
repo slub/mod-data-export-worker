@@ -140,15 +140,14 @@ OrderingTemplateContext / ClaimingTemplateContext
             │       ├── value                # scalar value — see Custom fields note below
             │       └── values[]             # array value  — see Custom fields note below
             └── pieces[]                     # claimed pieces of this line — CLAIMS export only (absent for orders)
-                └── piece
-                    ├── title                # PO line title; for a package PO line the title of the piece's title record
-                    ├── displaySummary       # e.g. issue label
-                    ├── enumeration
-                    ├── chronology
-                    ├── format               # Physical, Electronic, Other
-                    ├── supplement           # boolean
-                    ├── receiptDate          # expected receipt date, yyyy-MM-dd
-                    └── externalNote         # note to the vendor (internalNote and comment are never exported)
+                ├── title                    # PO line title; for a package PO line the title of the piece's title record
+                ├── displaySummary           # e.g. issue label
+                ├── enumeration
+                ├── chronology
+                ├── format                   # Physical, Electronic, Other
+                ├── supplement               # boolean
+                ├── receiptDate              # expected receipt date, yyyy-MM-dd
+                └── externalNote             # note to the vendor (internalNote and comment are never exported)
 ```
 > **Null/empty policy:** missing values are rendered as safe defaults rather than
 > `null`, so templates can reference any field without null checks.
@@ -163,10 +162,10 @@ OrderingTemplateContext / ClaimingTemplateContext
 >
 > Hidden custom fields (definition `visible: false`) and fields whose definition cannot be resolved are omitted.
 >
-> **Pieces:** `orderLine.pieces[]` lists the claimed pieces of the line, one `{ piece }` entry per piece (not grouped
-> like the claims CSV), sorted by `receiptDate` (pieces without one last), then `displaySummary`. Each piece is
-> wrapped in `piece` so that `{{#pieces}}{{piece.enumeration}}{{/pieces}}` cannot fall back to an order line field
-> of the same name. The key is absent in an orders export. Only PO lines with claimed pieces are included in a
+> **Pieces:** `orderLine.pieces[]` lists the claimed pieces of the line, one entry per piece (not grouped
+> like the claims CSV), sorted by `receiptDate` (pieces without one last), then `displaySummary`. Inside
+> `{{#pieces}}…{{/pieces}}` the piece fields are addressed directly, e.g. `{{enumeration}}`; every field always has a
+> value, so a template never falls back to an outer field. The key is absent in an orders export. Only PO lines with claimed pieces are included in a
 > claims export, and a claims job without claimed pieces fails instead of sending an email.
 
 #### Example payload — orders
@@ -404,28 +403,24 @@ A serial with two claimed issues on the same PO line. Only PO lines with claimed
             },
             "pieces": [
               {
-                "piece": {
-                  "title": "Bibliotheksforum Aktuell",
-                  "displaySummary": "Heft 3/2027",
-                  "enumeration": "Jg. 12, Nr. 3",
-                  "chronology": "März 2027",
-                  "format": "Physical",
-                  "supplement": false,
-                  "receiptDate": "2027-03-01",
-                  "externalNote": "Second reminder – please deliver urgently"
-                }
+                "title": "Bibliotheksforum Aktuell",
+                "displaySummary": "Heft 3/2027",
+                "enumeration": "Jg. 12, Nr. 3",
+                "chronology": "März 2027",
+                "format": "Physical",
+                "supplement": false,
+                "receiptDate": "2027-03-01",
+                "externalNote": "Second reminder – please deliver urgently"
               },
               {
-                "piece": {
-                  "title": "Bibliotheksforum Aktuell",
-                  "displaySummary": "Heft 4/2027",
-                  "enumeration": "Jg. 12, Nr. 4",
-                  "chronology": "April 2027",
-                  "format": "Physical",
-                  "supplement": false,
-                  "receiptDate": "2027-04-01",
-                  "externalNote": "Please confirm delivery date"
-                }
+                "title": "Bibliotheksforum Aktuell",
+                "displaySummary": "Heft 4/2027",
+                "enumeration": "Jg. 12, Nr. 4",
+                "chronology": "April 2027",
+                "format": "Physical",
+                "supplement": false,
+                "receiptDate": "2027-04-01",
+                "externalNote": "Please confirm delivery date"
               }
             ]
           }

@@ -21,7 +21,6 @@ import org.folio.dew.domain.dto.templateengine.context.CustomFieldContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderingTemplateContext;
 import org.folio.dew.domain.dto.templateengine.context.OrderLineContext;
 import org.folio.dew.domain.dto.templateengine.context.PieceContext;
-import org.folio.dew.domain.dto.templateengine.context.PieceWrapper;
 import org.folio.dew.domain.dto.templateengine.context.UserContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -438,7 +437,7 @@ class TemplateContextMapperTest {
     var ctx = mapper.buildClaimContext(List.of(order), List.of(piece1, piece2));
 
     var pieces = ((ClaimOrderLineContext) ctx.getOrders().get(0).orderLines().get(0).orderLine()).getPieces();
-    assertThat(pieces).extracting(wrapper -> wrapper.piece().getTitle()).containsExactly("Package title", "Package title");
+    assertThat(pieces).extracting(PieceContext::getTitle).containsExactly("Package title", "Package title");
     verify(ordersService, times(1)).getTitleById(titleId);
   }
 
@@ -464,7 +463,7 @@ class TemplateContextMapperTest {
 
     var json = objectMapper.valueToTree(mapper.buildClaimContext(List.of(order), List.of(piece)));
 
-    assertThat(json.at("/orders/0/orderLines/0/orderLine/pieces/0/piece/enumeration").asText()).isEqualTo("Nr. 3");
+    assertThat(json.at("/orders/0/orderLines/0/orderLine/pieces/0/enumeration").asText()).isEqualTo("Nr. 3");
     assertThat(json.toString()).doesNotContain("internalNote", "internal-secret", "comment-secret");
   }
 
@@ -500,13 +499,13 @@ class TemplateContextMapperTest {
   }
 
   private List<String> displaySummaries(ClaimOrderLineContext line) {
-    return line.getPieces().stream().map(PieceWrapper::piece).map(PieceContext::getDisplaySummary).toList();
+    return line.getPieces().stream().map(PieceContext::getDisplaySummary).toList();
   }
 
   private PieceContext singlePiece(ClaimingTemplateContext ctx) {
     var line = (ClaimOrderLineContext) ctx.getOrders().get(0).orderLines().get(0).orderLine();
     assertThat(line.getPieces()).hasSize(1);
-    return line.getPieces().get(0).piece();
+    return line.getPieces().get(0);
   }
 
   private CompositePurchaseOrder loadOrder(String path) throws IOException {
