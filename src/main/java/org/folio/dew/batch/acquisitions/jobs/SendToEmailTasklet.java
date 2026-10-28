@@ -127,6 +127,7 @@ public class SendToEmailTasklet implements Tasklet {
     request.setContext(context);
 
     try {
+      log.info("resolveTemplate:: Template request: {}", ediObjectMapper.writeValueAsString(request));
       TemplateProcessingResponse response = templateEngineClient.processTemplate(request);
       String outputFormat = response.getMeta() != null && response.getMeta().getOutputFormat() != null
         ? response.getMeta().getOutputFormat() : request.getOutputFormat();
